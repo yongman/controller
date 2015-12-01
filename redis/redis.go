@@ -154,6 +154,33 @@ func ClusterNodes(addr string) (string, error) {
 	return "", err
 }
 
+func ClusterNodesInRegion(addr string, region string) (string, error) {
+	inner := func(addr string, region string) (string, error) {
+		conn, err := dial(addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
+
+		resp, err := redis.String(conn.Do("cluster", "nodes", "extra", region))
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
+	}
+	retry := NUM_RETRY
+	var err error
+	var resp string
+	for retry > 0 {
+		resp, err = inner(addr, region)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
+}
+
 func FetchClusterInfo(addr string) (topo.ClusterInfo, error) {
 	clusterInfo := topo.ClusterInfo{}
 	conn, err := dial(addr)
