@@ -125,7 +125,7 @@ func (self *Inspector) MeetNode(node *topo.Node) {
 }
 
 func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
-	resp, err := redis.ClusterNodes(seed.Addr())
+	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 }
 
 func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
-	resp, err := redis.ClusterNodes(seed.Addr())
+	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
 	if err != nil {
 		return false, nil
 	}
@@ -205,7 +205,7 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 }
 
 func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
-	resp, err := redis.ClusterNodes(seed.Addr())
+	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
 	if err != nil {
 		return err
 	}
