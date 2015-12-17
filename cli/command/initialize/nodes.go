@@ -3,8 +3,10 @@ package initialize
 import (
 	"errors"
 	"fmt"
-	"github.com/codeskyblue/go-sh"
 	"strings"
+	"time"
+
+	"github.com/codeskyblue/go-sh"
 )
 
 var (
@@ -76,27 +78,28 @@ func validateProcess(nodes []*Node) bool {
 	return res
 }
 
-func checkAndSetState(node *Node) {
+func checkAndSetState(node *Node) error {
 	if node.Alive == false {
-		return
+		return fmt.Errorf("node is not alive")
 	}
 	info, err := clusterNodes(node)
 	if err != nil {
-		return
+		return fmt.Errorf("get cluster nodes failed")
 	}
 	if len(SplitLine(info)) > 1 {
 		node.Met = true
-		return
+		return fmt.Errorf("node already joined a cluster")
 	}
 
 	//set info state
 	cols := strings.Fields(info)
 	if len(cols) != 8 {
-		return
+		return fmt.Errorf("cluster info field not right")
 	}
 	node.Id = cols[0]
 	role := cols[2]
 	node.Role = strings.Split(role, ",")[1]
+	return nil
 }
 
 //try my best to choose num node in differrnt host
@@ -190,12 +193,10 @@ func getAndRemoveReplicas(nodes []*Node, num int, master *Node) ([]*Node, []*Nod
 	}
 
 	for _, node := range nodes {
-		for _, cnode := range choose {
-			if node.Id == cnode.Id {
-				continue
-			}
-			left = append(left, node)
+		if node.Chosen {
+			continue
 		}
+		left = append(left, node)
 	}
 	return choose, left
 }
@@ -232,7 +233,7 @@ func buildCluster(nodes []*Node, replicas int, masterRooms, allRooms []string) (
 		masterNodes = append(masterNodes, mNodes...)
 	}
 
-	//统计每个机房剩余的node，用于分配salve
+	//统计每个机房剩余的node，用于分配slave
 	repliNodes := map[string][]*Node{}
 	for _, r := range allRooms {
 		repliNodes[r] = getFreeNodes(nodes, r)
@@ -265,6 +266,7 @@ func buildCluster(nodes []*Node, replicas int, masterRooms, allRooms []string) (
 			node.Role = "slave"
 		}
 	}
+	time.Sleep(1 * time.Second)
 	//非主地域
 	for _, r := range otherRooms {
 		avgRepli = len(repliNodes[r]) / masterNum
@@ -276,6 +278,7 @@ func buildCluster(nodes []*Node, replicas int, masterRooms, allRooms []string) (
 				node.Role = "slave"
 			}
 		}
+		time.Sleep(1 * time.Second)
 	}
 
 	return masterNodes, nil

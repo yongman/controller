@@ -2,10 +2,11 @@ package initialize
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
-	"github.com/fatih/color"
 	"os"
 	"strings"
+
+	"github.com/codegangsta/cli"
+	"github.com/fatih/color"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 		cli.StringFlag{"m,master", "", "master machine rooms list"},
 		cli.IntFlag{"r,replicas", 0, "replicaset of each master node"},
 		cli.BoolFlag{"force", "reset nodes before init cluster force"},
+		cli.BoolFlag{"F", "force init cluster force"},
 	}
 
 	Command = cli.Command{
@@ -92,6 +94,7 @@ func action(c *cli.Context) {
 		os.Exit(-1)
 	}
 	force := c.Bool("force")
+	F := c.Bool("F")
 	replicas := c.Int("r")
 
 	allnodes := []*Node{}
@@ -116,12 +119,14 @@ func action(c *cli.Context) {
 
 	/* reset all nodes */
 	if force {
-		fmt.Printf("Type %s to continue: ", green("yes"))
-		fmt.Printf("%s\n", red("(--force will reset the cluster)"))
+		if !F {
+			fmt.Printf("Type %s to continue: ", green("yes"))
+			fmt.Printf("%s\n", red("(--force will reset the cluster)"))
 
-		fmt.Scanf("%s\n", &cmd)
-		if cmd != "yes" {
-			os.Exit(0)
+			fmt.Scanf("%s\n", &cmd)
+			if cmd != "yes" {
+				os.Exit(0)
+			}
 		}
 		resp, err := resetNodes(allnodes)
 		if err != nil {
@@ -141,17 +146,24 @@ func action(c *cli.Context) {
 	}
 
 	/* check and set state */
+	fmt.Println("Check and set state...")
 	for _, node := range allnodes {
-		checkAndSetState(node)
+		err := checkAndSetState(node)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
 	}
 
 	/* validate the state and continue */
+	fmt.Println("validate node info")
 	if validateProcess(allnodes) == false {
 		fmt.Printf("Not all nodes have the right status  %s\n", red("Error"))
 		os.Exit(-1)
 	}
 
 	/* build cluster */
+	fmt.Println("Building cluster...")
 	masterNodes, err := buildCluster(allnodes, replicas, masterRooms, rooms)
 	if err != nil {
 		fmt.Printf("%v buildCluster failed\n", red(err))
@@ -172,10 +184,12 @@ func action(c *cli.Context) {
 			fmt.Printf("%s %s\t%s\t%s\t%s\n", cyan("S:"), slave.Id, slave.Ip, slave.Port, slave.MasterId)
 		}
 	}
-	fmt.Printf("Type %s to continue: ", green("yes"))
-	fmt.Scanf("%s\n", &cmd)
-	if cmd != "yes" {
-		os.Exit(0)
+	if !F {
+		fmt.Printf("Type %s to continue: ", green("yes"))
+		fmt.Scanf("%s\n", &cmd)
+		if cmd != "yes" {
+			os.Exit(0)
+		}
 	}
 
 	/* send cmd to cluster */
