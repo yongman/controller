@@ -2,14 +2,21 @@ package initialize
 
 import (
 	"fmt"
-	"github.com/ksarch-saas/cc/redis"
 	"strconv"
 	"time"
+
+	"github.com/ksarch-saas/cc/redis"
 )
 
 func isAlive(node *Node) bool {
 	addr := fmt.Sprintf("%s:%s", node.Ip, node.Port)
-	return redis.IsAlive(addr)
+	for try := redis.NUM_RETRY; try >= 0; try-- {
+		alive := redis.IsAlive(addr)
+		if alive {
+			return true
+		}
+	}
+	return false
 }
 
 func isEmpty(node *Node) bool {
