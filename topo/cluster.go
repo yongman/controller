@@ -1,8 +1,6 @@
 package topo
 
-import (
-	"errors"
-)
+import "errors"
 
 var (
 	ErrInvalidParentId = errors.New("topo: invalid parent id, master not exist")
@@ -164,10 +162,39 @@ func (self *Cluster) BuildReplicaSets() error {
 }
 
 type ByMasterId []*ReplicaSet
+type ByNodeState []*ReplicaSet
 
+// sort by master id
 func (a ByMasterId) Len() int           { return len(a) }
 func (a ByMasterId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByMasterId) Less(i, j int) bool { return a[i].Master.Id < a[j].Master.Id }
+
+// sort replicas by node state
+func (a ByNodeState) Len() int      { return len(a) }
+func (a ByNodeState) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByNodeState) Less(i, j int) bool {
+	//inner function to check a relicas is normal
+	inner := func(idx int) bool {
+		if a[idx].Master.PFail || a[idx].Master.Fail || a[idx].Master.Free ||
+			(!a[idx].Master.Readable && !a[idx].Master.Writable) {
+			return true
+		}
+		for _, node := range a[idx].Slaves {
+			if node.PFail || node.Fail || node.Free ||
+				(!node.Readable && !node.Writable) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(a[i].Slaves) < len(a[j].Slaves) {
+		return false
+	}
+	if inner(i) && !inner(j) {
+		return false
+	}
+	return true
+}
 
 func (self *Cluster) ReplicaSets() []*ReplicaSet {
 	return self.replicaSets

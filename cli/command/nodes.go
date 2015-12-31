@@ -115,6 +115,7 @@ func showNodes(format string) {
 		return
 	}
 	sort.Sort(topo.ByMasterId(rss.ReplicaSets))
+	sort.Sort(topo.ByNodeState(rss.ReplicaSets))
 
 	var allNodes []*topo.Node
 	for i, rs := range rss.ReplicaSets {
