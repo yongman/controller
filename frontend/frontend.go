@@ -298,7 +298,7 @@ func (fe *FrontEnd) HandleForgetAndResetNode(c *gin.Context) {
 
 	cmd := command.ForgetAndResetNodeCommand{params.NodeId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, 60*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
