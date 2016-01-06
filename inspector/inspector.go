@@ -144,6 +144,9 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 			continue
 		}
 		node, myself, err := self.buildNode(line)
+		if err == ErrNodeInHandShake {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -223,6 +226,9 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		}
 
 		s, myself, err := self.buildNode(line)
+		if err == ErrNodeInHandShake {
+			continue
+		}
 		if err != nil {
 			return err
 		}
