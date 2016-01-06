@@ -40,7 +40,7 @@ func forgetandresetAction(c *cli.Context) {
 	req := api.ForgetAndResetNodeParams{
 		NodeId: nodeid,
 	}
-	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
+	resp, err := utils.HttpPostExtra(url, req, 60*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return
