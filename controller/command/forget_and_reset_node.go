@@ -40,6 +40,21 @@ func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, err
 			allForgetDone = false
 			log.Warningf(target.Addr(), "Forget node %s(%s) failed, %v", ns.Addr(), ns.Id(), err)
 			continue
+		} else if !node.Fail && err != nil {
+			//try again
+			for try := redis.NUM_RETRY; try >= 0; try-- {
+				_, err = redis.ClusterForget(ns.Addr(), target.Id)
+				if err == nil {
+					break
+				}
+			}
+			//execute failed after retry
+			if err != nil {
+				allForgetDone = false
+				log.Warningf(target.Addr(), "Forget node %s(%s) failed after retry, %v", ns.Addr(), ns.Id(), err)
+				continue
+			}
+
 		}
 		log.Eventf(target.Addr(), "Forget by %s(%s).", ns.Addr(), ns.Id())
 		forgetCount++
