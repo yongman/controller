@@ -627,7 +627,7 @@ func Slot2Node(addr string, slot int, dest string) (string, error) {
 	defer conn.Close()
 	resp, err := redis.String(conn.Do("slot2node", slot, dest))
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 	return resp, nil
 }

@@ -11,12 +11,16 @@ var AppDelCommand = cli.Command{
 	Name:   "appdel",
 	Usage:  "appdel",
 	Action: appDelAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{"d,appname", "", "appname"},
+	},
 	Description: `
     [Warning]
     delete the app from zookeeper`,
 }
 
 func appDelAction(c *cli.Context) {
+	appname := c.String("d")
 	super, err := context.CheckSuperPerm(context.Config.User)
 	if err != nil {
 		fmt.Println(err)
@@ -26,7 +30,9 @@ func appDelAction(c *cli.Context) {
 		fmt.Println("You have no permission to this operation")
 		return
 	}
-	appname := context.GetAppName()
+	if appname == "" {
+		appname = context.GetAppName()
+	}
 
 	fmt.Printf("Type %s to continue: ", "yes")
 	var cmd string

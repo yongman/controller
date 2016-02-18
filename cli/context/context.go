@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	gopath "path"
+	"sort"
 	"strings"
 	"time"
 
@@ -251,11 +253,42 @@ func DelApp(appName string, version int32) error {
 		return fmt.Errorf("zk: can't connect: %v", err)
 	}
 	zkPath := "/r3/app/" + appName
+
+	children, err := childrenRecursive(zconn, zkPath, "")
+	if err != nil {
+		return fmt.Errorf("zk: %v", err)
+	}
+	for i := len(children) - 1; i >= 0; i-- {
+		znode := zkPath + "/" + children[i]
+		if err = zconn.Delete(znode, -1); err != nil {
+			return fmt.Errorf("zk: %v", err)
+		}
+	}
+
 	err = zconn.Delete(zkPath, version)
 	if err != nil {
 		return fmt.Errorf("zk: path delete %v", err)
 	}
 	return nil
+}
+
+func childrenRecursive(zconn *zookeeper.Conn, path string, incrementalPath string) ([]string, error) {
+	children, _, err := zconn.Children(path)
+	if err != nil {
+		return children, err
+	}
+	sort.Sort(sort.StringSlice(children))
+	recursiveChildren := []string{}
+	for _, child := range children {
+		incrementalChild := gopath.Join(incrementalPath, child)
+		recursiveChildren = append(recursiveChildren, incrementalChild)
+		incrementalChildren, err := childrenRecursive(zconn, gopath.Join(path, child), incrementalChild)
+		if err != nil {
+			return children, err
+		}
+		recursiveChildren = append(recursiveChildren, incrementalChildren...)
+	}
+	return recursiveChildren, err
 }
 
 func GetLeaderAddr() string {
