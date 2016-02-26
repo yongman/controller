@@ -209,6 +209,11 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 
 func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
 	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
+	//this may lead to BuildClusterTopo update failed for a time
+	//the node is step into this state after check IsAlive
+	if strings.HasPrefix(err.Error(), "LOADING") {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
