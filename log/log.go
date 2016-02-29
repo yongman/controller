@@ -19,6 +19,15 @@ var LogRingBuffer []string
 
 func init() {
 	LogRingBuffer = make([]string, 40000)
+	go exFlushDaemon()
+}
+
+func exFlushDaemon() {
+	// glog FlushDaemon is running every 30 seconds, it's too long
+	// start a 1 second interval gorouting to flush log
+	for _ = range time.NewTicker(1 * time.Second).C {
+		glog.Flush()
+	}
 }
 
 func WriteFileHandler(i interface{}) bool {
