@@ -32,6 +32,8 @@ var cmds = []cli.Command{
 	c.TaskCommand,
 	c.RedisCliCommand,
 	c.Slot2NodeCommand,
+	c.AlterRegionCommand,
+	c.UpgradeServerCommand,
 }
 
 const (

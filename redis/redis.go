@@ -631,3 +631,22 @@ func Slot2Node(addr string, slot int, dest string) (string, error) {
 	}
 	return resp, nil
 }
+
+func RedisCli(addr string, cmd string, args ...interface{}) (interface{}, error) {
+	conn, err := dial(addr)
+	if err != nil {
+		return "connect failed", ErrConnFailed
+	}
+	defer conn.Close()
+	reply, err := conn.Do(cmd, args...)
+	if err != nil {
+		return redis.String(reply, err)
+	}
+	switch reply.(type) {
+	case []interface{}:
+		rs, _ := redis.Strings(reply, nil)
+		return rs, err
+	default:
+		return redis.String(reply, nil)
+	}
+}
