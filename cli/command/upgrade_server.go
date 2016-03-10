@@ -43,11 +43,13 @@ var IdxServerAddr = "ksarch-saas.baidu.com:7379"
 // 7 next replicaSet... and again
 
 // steps master upgrade
+// 0 enable autoenableslave read
+
 // 1 manualfailover to master
-// 2 disable read flag
+// 2 disable all slavess read flag
 // 3 check failover status done
 // 3 restart the old master node(shutdown nosave)
-// 4 check the status of slaves server
+// 4 check the status of all slaves server
 // 5 save the idx of the process
 // 6 enable the read flag
 // 7 next replicaSet… and again
@@ -210,6 +212,9 @@ func upgradeMaster(c *cli.Context) {
 	fmt.Printf("Get last idx record: %d\n", iidx)
 	var old_master *topo.Node
 	var new_master *topo.Node
+
+	//used to check status
+	var new_slaves []*topo.Node
 	old_master = nil
 	new_master = nil
 
@@ -224,16 +229,20 @@ func upgradeMaster(c *cli.Context) {
 		if old_master_r == "" {
 			return
 		}
+		new_slaves = append(new_slaves, old_master)
 
 		fmt.Printf("Upgrading replica(id:%s) (%d/%d) master\n", rs.Master.Id, idx, len(rss.ReplicaSets))
+		skip := false
 		for _, s := range rs.Slaves {
 			re := getRegion(s)
 			if re == "" {
 				return
 			}
-			if re == old_master_r {
+			if re == old_master_r && !skip {
 				new_master = s
-				break
+				skip = true
+			} else {
+				new_slaves = append(new_slaves, s)
 			}
 		}
 		if new_master == nil {
@@ -269,15 +278,17 @@ func upgradeMaster(c *cli.Context) {
 				time.Sleep(10 * time.Second)
 			}
 		}
-		//disable read flag of the old_master
-		resp, err = configRead(old_master, false)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		if resp.Errno != 0 {
-			fmt.Println(resp.Errmsg)
-			return
+		//disable read flag of the all new slaves,including old master
+		for _, s := range new_slaves {
+			resp, err = configRead(s, false)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if resp.Errno != 0 {
+				fmt.Println(resp.Errmsg)
+				return
+			}
 		}
 		//disable aof and rdb to speed up start
 		err = configAofAndRdb(old_master, false)
@@ -295,9 +306,24 @@ func upgradeMaster(c *cli.Context) {
 		for {
 			fmt.Printf("Check slave status %d times\n", cnt)
 			cnt++
+			inner := func(nodes []*topo.Node) bool {
+				rok := true
+				for _, n := range nodes {
+					ok, err := checkSlaveRepliStatusOk(n)
+					if ok {
+						//replica status ok,enable read flag,ignore result
+						configRead(n, true)
+						continue
+					}
+					if !ok || err != nil {
+						rok = false
+					}
+				}
+				return rok
+			}
 
-			ok, err := checkSlaveRepliStatusOk(old_master)
-			if err != nil || !ok {
+			ok := inner(new_slaves)
+			if !ok {
 				//not ok, wait for next trun check
 				time.Sleep(10 * time.Second)
 			} else {
@@ -308,16 +334,6 @@ func upgradeMaster(c *cli.Context) {
 		err = configAofAndRdb(old_master, true)
 		if err != nil {
 			fmt.Println(err)
-			return
-		}
-		//enable read flag of the old_master
-		resp, err = configRead(old_master, true)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		if resp.Errno != 0 {
-			fmt.Println(resp.Errmsg)
 			return
 		}
 		//save the idx of the process
