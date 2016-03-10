@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ksarch-saas/cc/cli/context"
@@ -98,7 +99,7 @@ func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []int
 	return interfaceSlice
 }
 
-func showNodes(format string) {
+func showNodes(format string, arbiter bool) {
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -119,6 +120,9 @@ func showNodes(format string) {
 
 	var allNodes []*topo.Node
 	for i, rs := range rss.ReplicaSets {
+		if !arbiter && rs.Master != nil && strings.Contains(rs.Master.Tag, "Arbiter") {
+			continue
+		}
 		allNodes = append(allNodes, rs.Master)
 		for _, node := range rs.Slaves {
 			allNodes = append(allNodes, node)

@@ -82,9 +82,10 @@ func showFailoverHistory() {
 
 func printShowUsage() {
 	Put("List of show subcommands:\n")
-	Put("show nodes         -- Show the nodes info group by replicaset in table format")
-	Put("show nodes-simple  -- Show the nodes info group by replicaset in raw format")
-	Put("show nodes-json  -- Show the nodes info group by replicaset in json format")
+	Put("show nodes         -- Show the nodes info group by replicaset in table format,exclude Arbiter")
+	Put("show nodes-simple  -- Show the nodes info group by replicaset in raw format,exclude Arbiter")
+	Put("show nodes-json    -- Show the nodes info group by replicaset in json format")
+	Put("show nodes-all	    -- Show the nodes info group by replicaset in json format")
 	Put("show slots         -- Show the ranges of master nodes")
 	Put("show tasks         -- Show migrating tasks")
 	Put("show failover      -- Show failover history records")
@@ -102,11 +103,13 @@ func showAction(c *cli.Context) {
 	case "tasks", "task":
 		showMigrationTasks()
 	case "nodes":
-		showNodes("table")
+		showNodes("table", false)
 	case "nodes-simple":
-		showNodes("")
+		showNodes("", false)
 	case "nodes-json":
-		showNodes("json")
+		showNodes("json", false)
+	case "nodes-all":
+		showNodes("table", true)
 	case "slots":
 		showSlots()
 	case "failover":
