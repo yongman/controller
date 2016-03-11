@@ -1,6 +1,9 @@
 package topo
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 var (
 	ErrInvalidParentId = errors.New("topo: invalid parent id, master not exist")
@@ -206,4 +209,14 @@ func (self *Cluster) NumReplicaSets() int {
 
 func (self *Cluster) String() string {
 	return ""
+}
+
+func (self *Cluster) HasArbiter() bool {
+	//check cluster arbiter nodes
+	for _, n := range self.nodes {
+		if n.Role == "master" && strings.Contains(n.Tag, "Arbiter") {
+			return true
+		}
+	}
+	return false
 }

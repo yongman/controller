@@ -88,14 +88,20 @@ func IsAlive(addr string) bool {
 
 /// Cluster
 
-func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool) error {
+func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool) error {
 	conn, err := dial(addr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	_, err = redis.String(conn.Do("cluster", "failover", "force"))
+	//change failover force to failover takeover, in case of arbiter vote
+	if takeover {
+		_, err = redis.String(conn.Do("cluster", "failover", "takeover"))
+	} else {
+		_, err = redis.String(conn.Do("cluster", "failover", "force"))
+	}
+
 	if err != nil {
 		return err
 	}

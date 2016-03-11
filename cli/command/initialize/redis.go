@@ -31,7 +31,6 @@ func isMaster(node *Node) bool {
 }
 
 func resetNodes(nodes []*Node) (string, error) {
-	var ChanErr chan error = make(chan error)
 	var ret_err error = nil
 	for _, node := range nodes {
 		inner := func(node *Node) {
@@ -41,15 +40,11 @@ func resetNodes(nodes []*Node) (string, error) {
 				_, err = redis.FlushAll(addr)
 			}
 			_, err = redis.ClusterReset(addr, false)
-			ChanErr <- err
-		}
-		go inner(node)
-	}
-	for i := 0; i < len(nodes); i++ {
-		err := <-ChanErr
-		if err != nil {
 			ret_err = err
 		}
+		fmt.Printf("Reset node %s\n", node.Id)
+		time.Sleep(1 * time.Second)
+		go inner(node)
 	}
 	return "", ret_err
 }

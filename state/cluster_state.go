@@ -229,7 +229,15 @@ func (cs *ClusterState) RunFailoverTask(oldMasterId, newMasterId string) {
 
 	c := make(chan error, 1)
 	go func() {
-		c <- redis.SetAsMasterWaitSyncDone(new.Addr(), true)
+		//choose failover force or takeover in case of arbiter
+		cluster := cs.cluster
+		if cluster.HasArbiter() {
+			//use failover takeover
+			c <- redis.SetAsMasterWaitSyncDone(new.Addr(), true, true)
+		} else {
+			//use failover force
+			c <- redis.SetAsMasterWaitSyncDone(new.Addr(), true, false)
+		}
 	}()
 
 	select {
