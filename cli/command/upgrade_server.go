@@ -219,6 +219,9 @@ func upgradeMaster(c *cli.Context) {
 	new_master = nil
 
 	for idx, rs := range rss.ReplicaSets {
+		if rs.Master.IsArbiter() {
+			continue
+		}
 		if idx <= iidx {
 			fmt.Printf("Skipping replica(id:%s) (%d/%d) master\n", rs.Master.Id, idx, len(rss.ReplicaSets))
 			continue
@@ -374,6 +377,9 @@ func upgradeSlaves(c *cli.Context) {
 
 	fmt.Printf("Get last idx record: %d\n", iidx)
 	for idx, rs := range rss.ReplicaSets {
+		if rs.Master.IsArbiter() {
+			continue
+		}
 		if idx <= iidx {
 			fmt.Printf("Skipping replica(id:%s) (%d/%d) slaves\n", rs.Master.Id, idx, len(rss.ReplicaSets))
 			continue

@@ -340,3 +340,7 @@ func (s *Node) MachineRoom() string {
 func (s *Node) String() string {
 	return fmt.Sprintf("%s(%s)", s.Addr(), s.Id)
 }
+
+func (s *Node) IsArbiter() bool {
+	return s.Role == "master" && strings.Contains(s.Tag, "Arbiter")
+}
