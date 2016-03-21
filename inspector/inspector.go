@@ -126,6 +126,10 @@ func (self *Inspector) MeetNode(node *topo.Node) {
 
 func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
+	if err != nil && strings.HasPrefix(err.Error(), "ERR Wrong CLUSTER subcommand or number of arguments") {
+		//server version do not support 'cluster nodes extra [region]'
+		resp, err = redis.ClusterNodes(seed.Addr())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +174,10 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 
 func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
+	if err != nil && strings.HasPrefix(err.Error(), "ERR Wrong CLUSTER subcommand or number of arguments") {
+		//server version do not support 'cluster nodes extra [region]'
+		resp, err = redis.ClusterNodes(seed.Addr())
+	}
 	if err != nil {
 		return false, nil
 	}
@@ -209,6 +217,11 @@ func (self *Inspector) isFreeNode(seed *topo.Node) (bool, *topo.Node) {
 
 func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) error {
 	resp, err := redis.ClusterNodesInRegion(seed.Addr(), self.LocalRegion)
+	if err != nil && strings.HasPrefix(err.Error(), "ERR Wrong CLUSTER subcommand or number of arguments") {
+		//server version do not support 'cluster nodes extra [region]'
+		resp, err = redis.ClusterNodes(seed.Addr())
+	}
+
 	//this may lead to BuildClusterTopo update failed for a time
 	//the node is step into this state after check IsAlive
 	if err != nil && strings.HasPrefix(err.Error(), "LOADING") {
