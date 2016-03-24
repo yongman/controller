@@ -51,9 +51,7 @@ func NewQueryStringTokenGetter(user, token string) *QueryStringTokenGetter {
 
 /*
 	Returns a TokenAuth object implemting Handler interface
-
 	if a handler is given it proxies the request to the handler
-
 	store is the TokenStore that stores and verify the tokens
 */
 func NewTokenAuth(handler http.Handler, store *MemoryTokenStore, getter TokenGetter) *TokenAuth {
@@ -111,6 +109,8 @@ func (t *TokenAuth) Authenticate(req *http.Request) (*MemoryToken, error) {
 		if err != nil {
 			return nil, err
 		}
+		//renew the token
+		t.store.RenewToken(strUser)
 	}
 	return token, nil
 }

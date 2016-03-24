@@ -95,6 +95,14 @@ func (s *MemoryTokenStore) UpdateToken(id, token string) *MemoryToken {
 	return t
 }
 
+/* renew a token, if exists */
+func (s *MemoryTokenStore) RenewToken(id string) {
+	t, ok := s.idTokens[id]
+	if ok {
+		t.ExpireAt = time.Now().Add(12 * time.Hour)
+	}
+}
+
 /* Create a new memory store */
 func NewTokenStore(salt string) *MemoryTokenStore {
 	return &MemoryTokenStore{

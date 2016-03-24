@@ -98,6 +98,10 @@ func SetApp(appName string, zkAddr string) error {
 	//fmt.Fprintf(os.Stderr, "[ web    : http://%s:%d/ui/cluster.html ]\n",
 	//	controllerConfig.Ip, controllerConfig.HttpPort)
 	err = CacheNodes()
+
+	//send RenewToken(nil) request to server
+	RenewToken()
+
 	return err
 }
 
@@ -349,12 +353,19 @@ func GetId(shortid string) (string, error) {
 				cnt = cnt + 1
 			}
 		}
-		if updated == false && cnt != 1 {
+		if updated == false && cnt == 0 {
 			err := CacheNodes()
 			if err != nil {
 				return "", err
 			}
 			updated = true
+			//find again after update CacheNodes
+			for node, _ := range nodesCache {
+				if strings.HasPrefix(node, shortid) {
+					longid = node
+					cnt = cnt + 1
+				}
+			}
 			break
 		}
 		if cnt == 1 {
@@ -410,4 +421,16 @@ func SaveConfig(filePath string, config *CliConf) error {
 		return err
 	}
 	return os.Rename(temp.Name(), filePath)
+}
+
+func RenewToken() {
+	addr := GetLeaderAddr()
+	extraHeader := &utils.ExtraHeader{
+		User:  Config.User,
+		Role:  Config.Role,
+		Token: Config.Token,
+	}
+
+	url := "http://" + addr + api.UpdateTokenId
+	utils.HttpPostExtra(url, nil, 10*time.Second, extraHeader)
 }

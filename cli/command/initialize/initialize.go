@@ -217,7 +217,7 @@ func action(c *cli.Context) {
 		}
 		resp, err = setReplicas(slaves)
 		if err != nil {
-			fmt.Printf("%s\n", red(resp))
+			fmt.Printf("%s\n", red(err.Error()))
 			break
 		} else {
 			fmt.Printf("%s\n", green(resp))

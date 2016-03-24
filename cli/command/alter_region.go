@@ -17,7 +17,7 @@ import (
 
 var AlterRegionCommand = cli.Command{
 	Name:   "alterRegion",
-	Usage:  "alterRegion nj/bj",
+	Usage:  "alterRegion -r=nj/bj",
 	Action: alterRegionAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{"r,region", "", "new master region"},

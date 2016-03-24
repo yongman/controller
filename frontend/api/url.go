@@ -21,4 +21,5 @@ const (
 	MakeReplicaSetPath      = "/replicaset/make"
 	FailoverTakeoverPath    = "/failover/takeover"
 	LogSlicePath            = "/log/slice"
+	UpdateTokenId           = "/update/tokenid"
 )

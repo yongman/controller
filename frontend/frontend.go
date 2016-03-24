@@ -16,19 +16,24 @@ import (
 )
 
 type FrontEnd struct {
-	C            *cc.Controller
-	Router       *gin.Engine
-	HttpBindAddr string
-	WsBindAddr   string
+	C              *cc.Controller
+	Router         *gin.Engine
+	HttpBindAddr   string
+	WsBindAddr     string
+	ProcessTimeout time.Duration
 }
 
 func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe := &FrontEnd{
-		C:            c,
-		Router:       gin.Default(),
-		HttpBindAddr: fmt.Sprintf(":%d", httpPort),
-		WsBindAddr:   fmt.Sprintf(":%d", wsPort),
+		C:              c,
+		Router:         gin.Default(),
+		HttpBindAddr:   fmt.Sprintf(":%d", httpPort),
+		WsBindAddr:     fmt.Sprintf(":%d", wsPort),
+		ProcessTimeout: 60,
 	}
+	//set  ReleaseMode
+	gin.SetMode(gin.ReleaseMode)
+
 	store := auth.NewTokenStore("r3")
 	tokenAuth := auth.NewTokenAuth(nil, store, nil)
 
@@ -50,6 +55,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.NodeReplicatePath, tokenAuth.HandleFunc(fe.HandleReplicate))
 	fe.Router.POST(api.MakeReplicaSetPath, tokenAuth.HandleFunc(fe.HandleMakeReplicaSet))
 	fe.Router.POST(api.FailoverTakeoverPath, tokenAuth.HandleFunc(fe.HandleFailoverTakeover))
+	fe.Router.POST(api.UpdateTokenId, tokenAuth.HandleFunc(fe.HandleUpdateTokenId))
 	fe.Router.POST(api.MergeSeedsPath, fe.HandleMergeSeeds)
 
 	return fe
@@ -69,7 +75,7 @@ func (fe *FrontEnd) HandleRegionSnapshot(c *gin.Context) {
 		Nodes:  params.Nodes,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 2*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -98,7 +104,7 @@ func (fe *FrontEnd) HandleToggleMode(c *gin.Context) {
 		return
 	}
 
-	result, err := fe.C.ProcessCommand(cmd, 2*time.Second)
+	result, err := fe.C.ProcessCommand(cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -130,7 +136,7 @@ func (fe *FrontEnd) HandleMigrateCreate(c *gin.Context) {
 		Ranges:   ranges,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -147,7 +153,7 @@ func (fe *FrontEnd) HandleMigratePause(c *gin.Context) {
 		SourceId: params.SourceId,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -164,7 +170,7 @@ func (fe *FrontEnd) HandleMigrateResume(c *gin.Context) {
 		SourceId: params.SourceId,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -181,7 +187,7 @@ func (fe *FrontEnd) HandleMigrateCancel(c *gin.Context) {
 		SourceId: params.SourceId,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -198,7 +204,7 @@ func (fe *FrontEnd) HandleMakeReplicaSet(c *gin.Context) {
 		NodeIds: params.NodeIds,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -217,7 +223,7 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 		ShowPlanOnly: params.ShowPlanOnly,
 	}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -241,7 +247,7 @@ func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 func (fe *FrontEnd) HandleFetchReplicaSets(c *gin.Context) {
 	cmd := command.FetchReplicaSetsCommand{}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -253,7 +259,7 @@ func (fe *FrontEnd) HandleFetchReplicaSets(c *gin.Context) {
 func (fe *FrontEnd) HandleFetchMigrationTasks(c *gin.Context) {
 	cmd := command.FetchMigrationTasksCommand{}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -268,7 +274,7 @@ func (fe *FrontEnd) HandleMeetNode(c *gin.Context) {
 
 	cmd := command.MeetNodeCommand{params.NodeId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -283,7 +289,7 @@ func (fe *FrontEnd) HandleSetAsMaster(c *gin.Context) {
 
 	cmd := command.SetAsMasterCommand{params.NodeId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -298,7 +304,7 @@ func (fe *FrontEnd) HandleForgetAndResetNode(c *gin.Context) {
 
 	cmd := command.ForgetAndResetNodeCommand{params.NodeId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 60*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -313,7 +319,7 @@ func (fe *FrontEnd) HandleReplicate(c *gin.Context) {
 
 	cmd := command.ReplicateCommand{params.ChildId, params.ParentId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -328,7 +334,7 @@ func (fe *FrontEnd) HandleFailoverTakeover(c *gin.Context) {
 
 	cmd := command.FailoverTakeoverCommand{params.NodeId}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -343,7 +349,7 @@ func (fe *FrontEnd) HandleMergeSeeds(c *gin.Context) {
 
 	cmd := command.MergeSeedsCommand{params.Region, params.Seeds}
 
-	result, err := fe.C.ProcessCommand(&cmd, 5*time.Second)
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
 	if err != nil {
 		c.JSON(200, api.MakeFailureResponse(err.Error()))
 		return
@@ -360,4 +366,10 @@ func (fe *FrontEnd) HandleLogSlice(c *gin.Context) {
 	lines := log.LogRingBuffer[n-params.Pos-params.Count : n-params.Pos]
 
 	c.JSON(200, api.MakeSuccessResponse(lines))
+}
+
+func (fe *FrontEnd) HandleUpdateTokenId(c *gin.Context) {
+	//do nothing,just return 200
+	//this used to add token to memory
+	c.JSON(200, api.MakeSuccessResponse(nil))
 }
