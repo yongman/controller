@@ -241,6 +241,11 @@ func (s *Node) SetZone(val string) *Node {
 	return s
 }
 
+func (s *Node) SetFree(free bool) *Node {
+	s.Free = free
+	return s
+}
+
 func (s *Node) SetRoom(val string) *Node {
 	s.Room = val
 	return s
