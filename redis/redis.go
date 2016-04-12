@@ -638,6 +638,7 @@ func Slot2Node(addr string, slot int, dest string) (string, error) {
 	return resp, nil
 }
 
+//Raw
 func RedisCli(addr string, cmd string, args ...interface{}) (interface{}, error) {
 	conn, err := dial(addr)
 	if err != nil {

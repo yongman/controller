@@ -34,6 +34,7 @@ var cmds = []cli.Command{
 	c.Slot2NodeCommand,
 	c.AlterRegionCommand,
 	c.UpgradeServerCommand,
+	c.FixHandshakeCommand,
 }
 
 const (
