@@ -39,6 +39,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 
 	fe.Router.Static("/ui", "./public")
 	fe.Router.GET(api.AppInfoPath, fe.HandleAppInfo)
+	fe.Router.GET(api.AppStatusPath, fe.HandleAppStatus)
 	fe.Router.GET(api.FetchReplicaSetsPath, fe.HandleFetchReplicaSets)
 	fe.Router.POST(api.LogSlicePath, fe.HandleLogSlice)
 	fe.Router.POST(api.RegionSnapshotPath, fe.HandleRegionSnapshot)
@@ -234,6 +235,18 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 
 func (fe *FrontEnd) HandleAppInfo(c *gin.Context) {
 	cmd := command.AppInfoCommand{}
+
+	result, err := cmd.Execute(fe.C)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleAppStatus(c *gin.Context) {
+	cmd := command.AppStatusCommand{}
 
 	result, err := cmd.Execute(fe.C)
 	if err != nil {

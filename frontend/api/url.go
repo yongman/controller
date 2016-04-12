@@ -3,6 +3,7 @@ package api
 const (
 	// URL值得仔细设计一番
 	AppInfoPath             = "/app/info"
+	AppStatusPath           = "/app/status"
 	RegionSnapshotPath      = "/region/snapshot"
 	MergeSeedsPath          = "/region/mergeseeds"
 	MigrateCreatePath       = "/migrate/create"
