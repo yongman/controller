@@ -48,10 +48,7 @@ func (self *Meta) HasSeed(seed *topo.Node) bool {
 	for _, s := range self.seeds {
 		if s.Addr() == seed.Addr() {
 			if s.Id == "" {
-				//save the seed free state
-				isfree := s.Free
 				*s = *seed
-				s.Free = isfree
 			}
 			return true
 		}

@@ -137,7 +137,11 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 	cluster := topo.NewCluster(self.LocalRegion)
 
 	var summary topo.SummaryInfo
+	var nodeidx *topo.Node
+	var cnt int
+
 	lines := strings.Split(resp, "\n")
+	cnt = 0
 	for _, line := range lines {
 		if strings.HasPrefix(line, "# ") {
 			summary.ReadLine(line)
@@ -167,6 +171,14 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 			node.SummaryInfo = summary
 		}
 		cluster.AddNode(node)
+		nodeidx = node
+		cnt++
+	}
+	if cnt == 1 {
+		if nodeidx.IsMaster() && len(nodeidx.Ranges) == 0 {
+			glog.Infof("Node %s is free node", nodeidx.Addr())
+			nodeidx.SetFree(true)
+		}
 	}
 
 	return cluster, nil
@@ -333,13 +345,14 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 		self.SeedIndex++
 		self.SeedIndex %= len(seeds)
 		if seed.Free {
-			glog.Info("Seed node is free, ", seed.Addr())
+			glog.Info("Seed node is free ", seed.Addr())
 		} else {
 			break
 		}
 	}
 	cluster, err := self.initClusterTopo(seed)
 	if err != nil {
+		glog.Infof("InitClusterTopo failed")
 		return nil, seeds, err
 	}
 
@@ -357,6 +370,7 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 					glog.Infof("Found free node %s", node.Addr())
 					cluster.AddNode(node)
 				} else {
+					glog.Infof("checkClusterTopo failed")
 					return cluster, seeds, err
 				}
 			} else {

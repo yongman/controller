@@ -39,10 +39,6 @@ func main() {
 	for _, addr := range strings.Split(seeds, ",") {
 		glog.Info(addr)
 		n := topo.NewNodeFromString(addr)
-
-		//set as a free node as default, this will update in build cluster topo
-		n.SetFree(true)
-
 		if n == nil {
 			glog.Fatal("invalid seeds %s", addr)
 		}
