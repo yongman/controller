@@ -155,6 +155,10 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 		if err == ErrNodeInHandShake {
 			continue
 		}
+		// Fix 'cluster nodes extra' & 'cluster nodes extra region' compatiable
+		if node.Region != self.LocalRegion {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -257,6 +261,10 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 
 		s, myself, err := self.buildNode(line)
 		if err == ErrNodeInHandShake {
+			continue
+		}
+		// Fix 'cluster nodes extra' & 'cluster nodes extra region' compatiable
+		if s.Region != self.LocalRegion {
 			continue
 		}
 		if err != nil {
