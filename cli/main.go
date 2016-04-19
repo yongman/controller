@@ -35,6 +35,7 @@ var cmds = []cli.Command{
 	c.AlterRegionCommand,
 	c.UpgradeServerCommand,
 	c.FixHandshakeCommand,
+	initialize.MakeReplicaCommand,
 }
 
 const (

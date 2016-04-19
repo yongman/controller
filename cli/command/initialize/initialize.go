@@ -35,12 +35,12 @@ var (
 	Command_node = cli.Command{
 		Name:   "assign",
 		Usage:  "assign slot to a empty node mannually",
-		Action: node_action,
+		Action: nodeAction,
 		Flags:  flags_node,
 	}
 )
 
-func node_action(c *cli.Context) {
+func nodeAction(c *cli.Context) {
 	red := color.New(color.FgRed).SprintFunc()
 	ip := c.String("ip")
 	port := c.String("port")
