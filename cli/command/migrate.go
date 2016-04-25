@@ -13,7 +13,7 @@ import (
 
 var MigrateCommand = cli.Command{
 	Name:   "migrate",
-	Usage:  "migrate <sid> <tid> range",
+	Usage:  "migrate <sid> <tid> range/slotsnum",
 	Action: migrateAction,
 }
 

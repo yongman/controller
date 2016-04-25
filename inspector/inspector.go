@@ -396,7 +396,9 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 		}
 	}
 
-	cluster.BuildReplicaSets()
+	if meta.IsClusterLeader() {
+		cluster.BuildReplicaSets()
+	}
 
 	meta.MergeSeeds(cluster.LocalRegionNodes())
 	self.ClusterTopo = cluster

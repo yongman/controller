@@ -9,11 +9,11 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
-	"github.com/jxwr/cc/controller/command"
-	"github.com/jxwr/cc/frontend/api"
-	"github.com/jxwr/cc/utils"
 	"github.com/ksarch-saas/cc/cli/context"
+	"github.com/ksarch-saas/cc/controller/command"
+	"github.com/ksarch-saas/cc/frontend/api"
 	"github.com/ksarch-saas/cc/topo"
+	"github.com/ksarch-saas/cc/utils"
 )
 
 var (
@@ -131,6 +131,14 @@ func mkreplicaAction(c *cli.Context) {
 		for _, slave := range slaves {
 			fmt.Printf("%s %s\t%s\t%s\t%s\n", cyan("S:"), slave.Id, slave.Ip, slave.Port, slave.MasterId)
 		}
+	}
+	var cmd string
+	fmt.Printf("Type %s to continue: ", green("yes"))
+	fmt.Printf("%s\n", red("(--force will reset the cluster)"))
+
+	fmt.Scanf("%s\n", &cmd)
+	if cmd != "yes" {
+		os.Exit(0)
 	}
 	meetEach(freeNodes)
 

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,6 +15,10 @@ var RebalanceCommand = cli.Command{
 	Name:   "rebalance",
 	Usage:  "rebalance",
 	Action: rebalanceAction,
+	Flags: []cli.Flag{
+		cli.StringFlag{"m,method", "default", "rebalance methed: default or cuttail"},
+		cli.BoolFlag{"r,run", "run or show rebalance plans only"},
+	},
 }
 
 func rebalanceAction(c *cli.Context) {
@@ -31,14 +36,22 @@ func rebalanceAction(c *cli.Context) {
 
 	url := "http://" + addr + api.RebalancePath
 
+	method := c.String("m")
+	show := c.Bool("r") == false
 	req := api.RebalanceParams{
-		Method:       "default",
-		ShowPlanOnly: false,
+		Method:       method,
+		ShowPlanOnly: show,
 	}
 	resp, err := utils.HttpPostExtra(url, req, 5*time.Second, extraHeader)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	ShowResponse(resp)
+	//ShowResponse(resp)
+	res, err := json.MarshalIndent(resp.Body, "", "  ")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(res))
 }
