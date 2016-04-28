@@ -3,6 +3,7 @@ package initialize
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -56,6 +57,10 @@ func addRegionAction(c *cli.Context) {
 
 	for _, rs := range rss.ReplicaSets {
 		if rs.Master != nil && len(rs.Master.Ranges) == 0 && len(rs.Slaves) == 0 {
+			// ignore arbiter
+			if strings.Contains(rs.Master.Tag, "Arbiter") {
+				continue
+			}
 			// this is a free node
 			if rs.Master.Region == region {
 				freeNodes = append(freeNodes, rs.Master)
@@ -82,6 +87,11 @@ func addRegionAction(c *cli.Context) {
 	}
 	meetEach(allNodes_alter)
 
+	if checkClusterInfo(allNodes_alter) {
+		fmt.Println("All nodes agree the configure, continue")
+	} else {
+		fmt.Println("Node configure inconsistent or slots incomplete")
+	}
 	// set replica
 	for idx, r := range masterNodes {
 		slaves := []*Node{}
