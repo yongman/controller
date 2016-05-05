@@ -27,6 +27,7 @@ type AppConfig struct {
 	Regions               []string
 	MigrateKeysEachTime   int
 	MigrateTimeout        int
+	SlaveFailoverLimit    bool
 }
 
 type ControllerConfig struct {

@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"encoding/json"
+	"strings"
+
 	"github.com/codegangsta/cli"
 	"github.com/ksarch-saas/cc/cli/context"
 	"github.com/ksarch-saas/cc/meta"
-	"strings"
 )
 
 var AppAddCommand = cli.Command{
@@ -26,6 +27,7 @@ var AppAddCommand = cli.Command{
 		cli.StringFlag{"R,regions", "bj,nj", "Regions"},
 		cli.IntFlag{"k,migratekey", 100, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", 2000, "MigrateTimeout"},
+		cli.BoolFlag{"l,slavefailoverlimit", "Slave failover limit check"},
 	},
 	Description: `
     add app configuration to zookeeper
@@ -42,6 +44,7 @@ func appAddAction(c *cli.Context) {
 	R := c.String("R")
 	k := c.Int("k")
 	t := c.Int("t")
+	l := c.Bool("l")
 
 	if appname == "" {
 		fmt.Println("-n,appname must be assigned")
@@ -57,6 +60,7 @@ func appAddAction(c *cli.Context) {
 		Regions:               strings.Split(R, ","),
 		MigrateKeysEachTime:   k,
 		MigrateTimeout:        t,
+		SlaveFailoverLimit:    l,
 	}
 	out, err := json.Marshal(appConfig)
 	if err != nil {

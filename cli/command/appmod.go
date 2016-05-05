@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/codegangsta/cli"
 	"github.com/ksarch-saas/cc/cli/context"
 	"github.com/ksarch-saas/cc/meta"
@@ -25,6 +26,7 @@ var AppModCommand = cli.Command{
 		cli.StringFlag{"R,regions", "", "Regions"},
 		cli.IntFlag{"k,migratekey", -1, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", -1, "MigrateTimeout"},
+		cli.StringFlag{"l,slavefailoverlimit", "", "Slave failover limit check"},
 	},
 	Description: `
     update app configuraton in zookeeper
@@ -44,9 +46,11 @@ func appModAction(c *cli.Context) {
 	R := c.String("R")
 	k := c.Int("k")
 	t := c.Int("t")
+	l := c.String("l")
 
 	appConfig := meta.AppConfig{}
 	config, version, err := context.GetApp(appname)
+	fmt.Println(string(config))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -76,6 +80,13 @@ func appModAction(c *cli.Context) {
 			appConfig.AutoFailover = true
 		} else if f == "false" {
 			appConfig.AutoFailover = false
+		}
+	}
+	if l != "" {
+		if l == "true" {
+			appConfig.SlaveFailoverLimit = true
+		} else if l == "false" {
+			appConfig.SlaveFailoverLimit = false
 		}
 	}
 	if i != -1 {

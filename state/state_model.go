@@ -104,19 +104,22 @@ var (
 		if rs == nil {
 			return false
 		}
-		// 至少还有一个节点
-		localRegionNodes := rs.RegionNodes(ns.node.Region)
-		if len(localRegionNodes) < 2 {
-			return false
-		}
-		// 最多一个故障节点(FAIL或不处于Running状态)
-		for _, node := range localRegionNodes {
-			if node.Id == ns.Id() {
-				continue
-			}
-			nodeState := cs.FindNodeState(node.Id)
-			if node.Fail || nodeState.CurrentState() != StateRunning {
+		app := meta.GetAppConfig()
+		if app.SlaveFailoverLimit {
+			// 至少还有一个节点
+			localRegionNodes := rs.RegionNodes(ns.node.Region)
+			if len(localRegionNodes) < 2 {
 				return false
+			}
+			// 最多一个故障节点(FAIL或不处于Running状态)
+			for _, node := range localRegionNodes {
+				if node.Id == ns.Id() {
+					continue
+				}
+				nodeState := cs.FindNodeState(node.Id)
+				if node.Fail || nodeState.CurrentState() != StateRunning {
+					return false
+				}
 			}
 		}
 		log.Info(getNodeState(i).Addr(), "Can failover slave")
