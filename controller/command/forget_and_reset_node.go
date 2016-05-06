@@ -6,6 +6,7 @@ import (
 
 	cc "github.com/ksarch-saas/cc/controller"
 	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
 	"github.com/ksarch-saas/cc/redis"
 )
 
@@ -71,5 +72,8 @@ func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, err
 		}
 		log.Eventf(target.Addr(), "Reset.")
 	}
+
+	// remove seed in leader contrller
+	meta.RemoveSeed(target.Addr())
 	return nil, nil
 }

@@ -64,6 +64,19 @@ func MergeSeeds(seeds []*topo.Node) {
 	}
 }
 
+func RemoveSeed(addr string) {
+	index := -1
+	for idx, s := range meta.seeds {
+		if s.Addr() == addr {
+			index = idx
+			break
+		}
+	}
+	if index > 0 {
+		meta.seeds = append(meta.seeds[:index], meta.seeds[index+1:]...)
+	}
+}
+
 func Seeds() []*topo.Node {
 	return meta.seeds
 }

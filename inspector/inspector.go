@@ -326,7 +326,6 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
-
 	if len(meta.Seeds()) == 0 {
 		return nil, nil, ErrNoSeed
 	}
@@ -336,6 +335,10 @@ func (self *Inspector) BuildClusterTopo() (*topo.Cluster, []*topo.Node, error) {
 	for _, s := range meta.Seeds() {
 		if redis.IsAlive(s.Addr()) {
 			seeds = append(seeds, s)
+		} else {
+			// remove this seed from meta seeds
+			// will re-add to seeds if join the cluster again
+			meta.RemoveSeed(s.Addr())
 		}
 	}
 
