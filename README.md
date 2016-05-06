@@ -1,4 +1,4 @@
-<img src="doc/pic/redis.png" heght="80"></img>
+<img src="doc/pic/redis.png" height="80"></img>
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ksarch-saas/RedisCluster?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ### Intro
@@ -25,6 +25,6 @@ The system should be used conbining with `https://github.com/ksarch-saas/redis` 
 
 ### Architecture
 
-<img src="doc/pic/rediscluster1.png"></img>
-<img src="doc/pic/rediscluster2.png"></img>
+<img src="doc/pic/rediscluster1.png" height="480"></img><br/>
+<img src="doc/pic/rediscluster2.png" height="800"></img>
 
