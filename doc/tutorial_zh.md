@@ -17,7 +17,7 @@
 	RegionLeader：地域的controller leader
 	ClusterLeader：整个集群的controller leader
 
-![architecture](doc/pic/rediscluster1.png)
+![architecture](pic/rediscluster1.png)
 
 
 ###系统组件
@@ -29,7 +29,7 @@
 
 
 单集群多地域架构如图所示。
-![arch](doc/pic/rediscluster2.png)
+![arch](pic/rediscluster2.png)
 
 ####Controller
 Controller工作在地域级别，往往一个地域有多个逻辑机房或物理机房，一个地域可以部署多个controller，但是同一地域内只有一个实际工作。当实际工作的controller挂掉后，集群会进行重新选择新主。
