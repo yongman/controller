@@ -223,3 +223,17 @@ func (self *Cluster) HasArbiter() bool {
 	}
 	return false
 }
+
+// when cluster down, use failover takeover command
+func (self *Cluster) IsClusterDown() bool {
+	numFailed := 0
+	for _, node := range self.MasterNodes() {
+		if node.Fail {
+			numFailed++
+		}
+	}
+	if numFailed >= (self.Size()+1)/2 {
+		return true
+	}
+	return false
+}
