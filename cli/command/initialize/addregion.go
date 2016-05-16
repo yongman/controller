@@ -85,6 +85,22 @@ func addRegionAction(c *cli.Context) {
 		}
 		allNodes_alter = append(allNodes_alter, node)
 	}
+	fmt.Println("Check node is alive")
+
+	for _, n := range freeNodes {
+		node := &Node{
+			Ip:   n.Ip,
+			Port: fmt.Sprintf("%d", n.Port),
+		}
+		fmt.Printf("connecting to %s\t%s\t", node.Ip, node.Port)
+		if isAlive(node) {
+			fmt.Printf("OK\n")
+		} else {
+			fmt.Printf("Error\n")
+		}
+	}
+
+	fmt.Println("Begin meet cluster nodes, this will take some times")
 	meetEach(allNodes_alter)
 
 	if checkClusterInfo(allNodes_alter) {

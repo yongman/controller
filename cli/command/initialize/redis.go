@@ -61,7 +61,8 @@ func meetEach(nodes []*Node) {
 			if n1 != n2 {
 				addr := fmt.Sprintf("%s:%s", n1.Ip, n1.Port)
 				newPort, _ := strconv.Atoi(n2.Port)
-				redis.ClusterMeet(addr, n2.Ip, newPort)
+				go redis.ClusterMeet(addr, n2.Ip, newPort)
+				fmt.Printf("%s meet %s:%s\n", addr, n2.Ip, n2.Port)
 			}
 		}
 	}
