@@ -37,6 +37,7 @@ var cmds = []cli.Command{
 	c.FixHandshakeCommand,
 	initialize.MakeReplicaCommand,
 	initialize.AddRegionCommand,
+	c.CheckReplicaCommand,
 }
 
 const (
