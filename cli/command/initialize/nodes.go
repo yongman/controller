@@ -161,12 +161,10 @@ func getAndRemoveReplicas(nodes []*Node, num int, master *Node) ([]*Node, []*Nod
 	var choose []*Node
 	var left []*Node
 
+	// choose other LogicMR nodes
 	for _, node := range nodes {
 		if num == 0 {
 			break
-		}
-		if node.Chosen || node.Ip == master.Ip {
-			continue
 		}
 		if node.LogicMR == master.LogicMR {
 			continue
@@ -180,6 +178,21 @@ func getAndRemoveReplicas(nodes []*Node, num int, master *Node) ([]*Node, []*Nod
 		num = num - 1
 	}
 
+	// choose different host nodes in this replicaset
+	for _, node := range nodes {
+		if num == 0 {
+			break
+		}
+		if node.Chosen || node.Ip == master.Ip || ipSet[node.Ip] {
+			continue
+		}
+		choose = append(choose, node)
+		node.Chosen = true
+		ipSet[node.Ip] = true
+		num = num - 1
+	}
+
+	// this is bad
 	for _, node := range nodes {
 		if num == 0 {
 			break
