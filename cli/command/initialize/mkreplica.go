@@ -133,8 +133,7 @@ func mkreplicaAction(c *cli.Context) {
 		}
 	}
 	var cmd string
-	fmt.Printf("Type %s to continue: ", green("yes"))
-	fmt.Printf("%s\n", red("(--force will reset the cluster)"))
+	fmt.Printf("Type %s to continue: \n", green("yes"))
 
 	fmt.Scanf("%s\n", &cmd)
 	if cmd != "yes" {

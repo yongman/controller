@@ -58,6 +58,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.FailoverTakeoverPath, tokenAuth.HandleFunc(fe.HandleFailoverTakeover))
 	fe.Router.POST(api.UpdateTokenId, tokenAuth.HandleFunc(fe.HandleUpdateTokenId))
 	fe.Router.POST(api.MergeSeedsPath, fe.HandleMergeSeeds)
+	fe.Router.POST(api.FixClusterPath, fe.HandleFixCluster)
 
 	return fe
 }
@@ -385,4 +386,16 @@ func (fe *FrontEnd) HandleUpdateTokenId(c *gin.Context) {
 	//do nothing,just return 200
 	//this used to add token to memory
 	c.JSON(200, api.MakeSuccessResponse(nil))
+}
+
+func (fe *FrontEnd) HandleFixCluster(c *gin.Context) {
+	cmd := command.FixClusterCommand{}
+
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
 }

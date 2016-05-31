@@ -62,6 +62,7 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 				}
 			}
 		}
+
 		// 更新Region内Node的状态机
 		ns.AdvanceFSM(cs, state.CMD_NONE)
 	}

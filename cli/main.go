@@ -38,6 +38,7 @@ var cmds = []cli.Command{
 	initialize.MakeReplicaCommand,
 	initialize.AddRegionCommand,
 	c.CheckReplicaCommand,
+	c.FixClusterCommand,
 }
 
 const (
