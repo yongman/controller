@@ -152,7 +152,7 @@ func (self *Inspector) initClusterTopo(seed *topo.Node) (*topo.Cluster, error) {
 			continue
 		}
 		node, myself, err := self.buildNode(line)
-		if err == ErrNodeInHandShake {
+		if err == ErrNodeInHandShake || err == ErrNodeNoAddr {
 			continue
 		}
 		// Fix 'cluster nodes extra' & 'cluster nodes extra region' compatiable
@@ -260,7 +260,7 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		}
 
 		s, myself, err := self.buildNode(line)
-		if err == ErrNodeInHandShake {
+		if err == ErrNodeInHandShake || err == ErrNodeNoAddr {
 			continue
 		}
 		// Fix 'cluster nodes extra' & 'cluster nodes extra region' compatiable
@@ -276,8 +276,8 @@ func (self *Inspector) checkClusterTopo(seed *topo.Node, cluster *topo.Cluster) 
 		node := cluster.FindNode(s.Id)
 		if node == nil {
 			if s.PFail {
-				glog.Warningf("forget dead node %s(%s)", s.Id, s.Addr())
-				redis.ClusterForget(seed.Addr(), s.Id)
+				glog.Warningf("forget dead node %s(%s) should be forgoten", s.Id, s.Addr())
+				//redis.ClusterForget(seed.Addr(), s.Id)
 			}
 			return fmt.Errorf("node not exist %s(%s)", s.Id, s.Addr())
 		}
