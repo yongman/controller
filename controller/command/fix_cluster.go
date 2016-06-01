@@ -49,11 +49,13 @@ func (self *FixClusterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 			continue
 		}
 		totalNum = totalNum + len(rs.AllNodes())
-		totalRepli = totalRepli + 1
-		if len(rs.AllNodes()) == 1 && nodeStates[rs.Master.Id] == state.StateRunning {
+		if len(rs.Master.Ranges) == 0 && nodeStates[rs.Master.Id] == state.StateRunning {
 			//free节点
 			freeNodes = append(freeNodes, rs.Master)
 		} else {
+			if len(rs.AllNodes()) > 1 {
+				totalRepli = totalRepli + 1
+			}
 			for _, node := range rs.AllNodes() {
 				if nodeStates[node.Id] != state.StateRunning {
 					failedNodes = append(failedNodes, node)
@@ -66,14 +68,31 @@ func (self *FixClusterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	}
 
 	if len(freeNodes) != len(failedNodes) ||
-		(totalNum-len(freeNodes))%(totalRepli-len(freeNodes)) != 0 {
+		(totalNum-len(failedNodes))%(totalRepli) != 0 {
 		log.Infof("local", "totalNum=%d totalRepli=%d freeNodes=%d failedNodes=%d",
-			totalNum-len(freeNodes), totalRepli-len(freeNodes), len(freeNodes), len(failedNodes))
+			totalNum-len(failedNodes), totalRepli, len(freeNodes), len(failedNodes))
 		return nil, errors.New("cluster fix check error, please check")
 	}
-	avgReplica := int(totalNum - len(freeNodes)/(totalRepli-len(freeNodes)))
+	avgReplica := int((totalNum - len(failedNodes)) / totalRepli)
+
+	replicaBroken := func(rs *topo.ReplicaSet) bool {
+		for _, n := range rs.AllNodes() {
+			if nodeStates[n.Id] != state.StateRunning {
+				return true
+			}
+		}
+		return false
+	}
 	for _, rs := range rss {
-		if len(rs.AllNodes()) < avgReplica {
+		if rs.Master != nil && rs.Master.IsArbiter() ||
+			nodeStates[rs.Master.Id] != state.StateRunning {
+			continue
+		}
+		if len(rs.AllNodes()) < avgReplica && len(rs.Master.Ranges) > 0 &&
+			nodeStates[rs.Master.Id] == state.StateRunning {
+			defectMaster = append(defectMaster, rs.Master)
+		}
+		if len(rs.AllNodes()) == avgReplica && replicaBroken(rs) == true {
 			defectMaster = append(defectMaster, rs.Master)
 		}
 	}
@@ -93,10 +112,9 @@ func (self *FixClusterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		}
 		meetCmd.Execute(c)
 		log.Eventf(node.Addr(), "Meet cluster")
+		// give some time to gossip
+		time.Sleep(5 * time.Second)
 	}
-
-	// give some time to gossip
-	time.Sleep(5 * time.Second)
 
 	for idx, node := range freeNodes {
 		//disable read
