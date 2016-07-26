@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	StateRunning int32 = iota
+	StateNew int32 = iota
+	StateRunning
 	StatePausing
 	StatePaused
 	StateCancelling
@@ -24,6 +25,7 @@ const (
 )
 
 var stateNames = map[int32]string{
+	StateNew:               "New",
 	StateRunning:           "Migrating",
 	StatePausing:           "Pausing",
 	StatePaused:            "Paused",
@@ -59,7 +61,7 @@ func NewMigrateTask(cluster *topo.Cluster, sourceRS, targetRS *topo.ReplicaSet, 
 	t := &MigrateTask{
 		cluster:     cluster,
 		ranges:      ranges,
-		state:       StateRunning,
+		state:       StateNew,
 		lastPubTime: time.Now(),
 	}
 	t.ReplaceSourceReplicaSet(sourceRS)
@@ -78,6 +80,15 @@ func (t *MigrateTask) ToPlan() *MigratePlan {
 		Ranges:   t.ranges,
 		CurrSlot: t.currSlot,
 		State:    stateNames[t.state],
+	}
+}
+
+func (t *MigrateTask) ToMeta() *meta.MigrateMeta {
+	return &meta.MigrateMeta{
+		SourceId: t.SourceNode().Id,
+		TargetId: t.TargetNode().Id,
+		Ranges:   t.ranges,
+		TaskId:   fmt.Sprintf("%s-%s", t.SourceNode().Id[:6], t.TargetNode().Id[:6]),
 	}
 }
 
@@ -153,8 +164,6 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 			return 0, err, ""
 		}
 	}
-
-	/// 迁移的速度甚至迁移超时的配置可能都有不小问题，目前所有命令是短连接，且一次只迁移一个key
 
 	// 一共迁移多少个key
 	nkeys := 0
@@ -243,6 +252,9 @@ func (t *MigrateTask) streamPub(careSpeed bool) {
 }
 
 func (t *MigrateTask) Run() {
+	if t.CurrentState() == StateNew {
+		t.SetState(StateRunning)
+	}
 	prev_key := ""
 	timeout_cnt := 0
 	for i, r := range t.ranges {

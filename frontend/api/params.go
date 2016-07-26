@@ -82,6 +82,9 @@ type MergeSeedsParams struct {
 	Region string       `json:"region"`
 	Seeds  []*topo.Node `json:"seeds"`
 }
+type MigrateRecoverParams struct {
+	ShowOnly bool `json:"showonly"`
+}
 
 type LogSliceParams struct {
 	// Example: to impl 'tail -n 100', use Pos=0, Count=100

@@ -1,7 +1,6 @@
 package api
 
 const (
-	// URL值得仔细设计一番
 	AppInfoPath             = "/app/info"
 	AppStatusPath           = "/app/status"
 	RegionSnapshotPath      = "/region/snapshot"
@@ -10,6 +9,7 @@ const (
 	MigratePausePath        = "/migrate/pause"
 	MigrateResumePath       = "/migrate/resume"
 	MigrateCancelPath       = "/migrate/cancel"
+	MigrateRecoverPath      = "/migrate/recover"
 	FetchMigrationTasksPath = "/migrate/tasks"
 	RebalancePath           = "/migrate/rebalance"
 	NodePermPath            = "/node/perm"

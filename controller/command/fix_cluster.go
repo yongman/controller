@@ -63,13 +63,15 @@ func (self *FixClusterCommand) Execute(c *cc.Controller) (cc.Result, error) {
 			}
 		}
 	}
+
+	log.Infof("CLUSTER", "freeNodes=%d failedNodes=%d", len(freeNodes), len(failedNodes))
 	if len(freeNodes) == 0 && len(failedNodes) == 0 {
 		return nil, nil
 	}
 
 	if len(freeNodes) != len(failedNodes) ||
 		(totalNum-len(failedNodes))%(totalRepli) != 0 {
-		log.Infof("local", "totalNum=%d totalRepli=%d freeNodes=%d failedNodes=%d",
+		log.Infof("CLUSTER", "totalNum=%d totalRepli=%d freeNodes=%d failedNodes=%d",
 			totalNum-len(failedNodes), totalRepli, len(freeNodes), len(failedNodes))
 		return nil, errors.New("cluster fix check error, please check")
 	}

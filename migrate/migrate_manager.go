@@ -4,7 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/ksarch-saas/cc/log"
+	"github.com/ksarch-saas/cc/meta"
 	"github.com/ksarch-saas/cc/redis"
 	"github.com/ksarch-saas/cc/streams"
 	"github.com/ksarch-saas/cc/topo"
@@ -31,6 +33,7 @@ type MigrateManager struct {
 
 func NewMigrateManager() *MigrateManager {
 	m := &MigrateManager{tasks: []*MigrateTask{}}
+	go m.CheckAndRunTask()
 	return m
 }
 
@@ -53,15 +56,52 @@ func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Ran
 }
 
 func (m *MigrateManager) AddTask(task *MigrateTask) error {
-	t := m.FindTaskBySource(task.SourceNode().Id)
-	if t != nil {
-		return ErrMigrateAlreadyExist
+	//add task to zk
+	taskMeta := task.ToMeta()
+	err := meta.AddMigrateTask(taskMeta)
+	if err != nil {
+		return err
 	}
+
+	m.tasks = append(m.tasks, task)
+
+	return nil
+}
+
+func (m *MigrateManager) AppendTask(task *MigrateTask) error {
 	m.tasks = append(m.tasks, task)
 	return nil
 }
 
-func (m *MigrateManager) RemoveTask(task *MigrateTask) {
+func (m *MigrateManager) CheckAndRunTask() {
+	tickCh := time.NewTicker(time.Second * 5).C
+	for {
+		select {
+		case <-tickCh:
+			glog.Info("Check new migrate task, task queue length: ", len(m.tasks))
+			app := meta.GetAppConfig()
+			idx := 0
+			for _, task := range m.tasks {
+				glog.Info("Task status: ", stateNames[task.CurrentState()])
+				if task.CurrentState() == StateRunning {
+					idx++
+				} else if task.CurrentState() == StateNew {
+					glog.Info("Set task running ", task)
+					go task.Run()
+				} else if task.CurrentState() == StateDone {
+					glog.Info("Remove task when task is done ", task)
+					m.RemoveTask(task, true)
+				}
+
+				if idx > app.MigrateConcurrency {
+					break
+				}
+			}
+		}
+	}
+}
+
+func (m *MigrateManager) RemoveTask(task *MigrateTask, zkCascade bool) error {
 	pos := -1
 	for i, t := range m.tasks {
 		if t == task {
@@ -71,7 +111,14 @@ func (m *MigrateManager) RemoveTask(task *MigrateTask) {
 	if pos != -1 {
 		m.lastTaskEndTime = time.Now()
 		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
+		if zkCascade {
+			err := meta.RemoveMigrateTask(task.ToMeta().TaskId)
+			if err != nil {
+				return err
+			}
+		}
 	}
+	return nil
 }
 
 func (m *MigrateManager) FindTasksByNode(nodeId string) []*MigrateTask {
@@ -142,7 +189,7 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 			task.SetBackupReplicaSet(task.TargetReplicaSet())
 			return ErrTargetNodeFail
 		}
-	} else {
+	} else if task.CurrentState() != StateNew {
 		task.SetState(StateRunning)
 		task.SetBackupReplicaSet(nil)
 	}
@@ -222,7 +269,10 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 					", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master.Addr())
 				go func(t *MigrateTask) {
 					t.Run()
-					m.RemoveTask(t)
+					err := m.RemoveTask(t, false)
+					if err != nil {
+						log.Warning(node.Addr(), "RemoveTask failed, %v", err)
+					}
 				}(task)
 				goto done
 			}
@@ -266,7 +316,7 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 					", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master.Addr(), target.Addr())
 				go func(t *MigrateTask) {
 					t.Run()
-					m.RemoveTask(t)
+					m.RemoveTask(t, false)
 				}(task)
 				goto done
 			}
@@ -290,6 +340,20 @@ func (m *MigrateManager) RunRebalanceTask(plans []*MigratePlan, cluster *topo.Cl
 	return nil
 }
 
+// rebuild tasks from zk
+func (m *MigrateManager) RebuildTasks(migrateMetas []*meta.MigrateMeta, cluster *topo.Cluster) {
+	if migrateMetas != nil {
+		for _, mm := range migrateMetas {
+			task, err := m.CreateTask(mm.SourceId, mm.TargetId, mm.Ranges, cluster)
+			if err == nil {
+				log.Info(task.TaskName(), "Load task from zk")
+			} else {
+				log.Warning(task.TaskName(), "CreateTask failed, %v", err)
+			}
+		}
+	}
+}
+
 func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster) {
 	// 启动所有任务，失败则等待一会进行重试
 	for {
@@ -300,7 +364,6 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 				if err == nil {
 					log.Infof(task.TaskName(), "Rebalance task created, %v", task)
 					plan.task = task
-					go task.Run()
 				} else {
 					allRunning = false
 				}
@@ -320,7 +383,7 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 			if state != StateDone && state != StateCancelled {
 				allDone = false
 			} else {
-				m.RemoveTask(plan.task)
+				m.RemoveTask(plan.task, true)
 			}
 		}
 		if allDone {

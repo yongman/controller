@@ -19,6 +19,7 @@ var cmds = []cli.Command{
 	c.FailoverCommand,
 	c.TakeoverCommand,
 	c.MigrateCommand,
+	c.MigrateRecoverCommand,
 	c.ReplicateCommand,
 	c.RebalanceCommand,
 	c.MeetCommand,

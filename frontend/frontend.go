@@ -47,6 +47,7 @@ func NewFrontEnd(c *cc.Controller, httpPort, wsPort int) *FrontEnd {
 	fe.Router.POST(api.MigratePausePath, tokenAuth.HandleFunc(fe.HandleMigratePause))
 	fe.Router.POST(api.MigrateResumePath, tokenAuth.HandleFunc(fe.HandleMigrateResume))
 	fe.Router.POST(api.MigrateCancelPath, tokenAuth.HandleFunc(fe.HandleMigrateCancel))
+	fe.Router.POST(api.MigrateRecoverPath, tokenAuth.HandleFunc(fe.HandleMigrateRecover))
 	fe.Router.GET(api.FetchMigrationTasksPath, fe.HandleFetchMigrationTasks)
 	fe.Router.POST(api.RebalancePath, tokenAuth.HandleFunc(fe.HandleRebalance))
 	fe.Router.POST(api.NodePermPath, tokenAuth.HandleFunc(fe.HandleToggleMode))
@@ -223,6 +224,23 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 		Method:       params.Method,
 		TargetIds:    params.TargetIds,
 		ShowPlanOnly: params.ShowPlanOnly,
+	}
+
+	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)
+	if err != nil {
+		c.JSON(200, api.MakeFailureResponse(err.Error()))
+		return
+	}
+
+	c.JSON(200, api.MakeSuccessResponse(result))
+}
+
+func (fe *FrontEnd) HandleMigrateRecover(c *gin.Context) {
+	var params api.MigrateRecoverParams
+	c.Bind(&params)
+
+	cmd := command.MigrateRecoverCommand{
+		ShowOnly: params.ShowOnly,
 	}
 
 	result, err := fe.C.ProcessCommand(&cmd, fe.ProcessTimeout*time.Second)

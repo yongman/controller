@@ -25,3 +25,17 @@ func ShowResponse(resp *api.Response) {
 		fmt.Println("Command failed:", resp.Errmsg)
 	}
 }
+
+func ShowResponseArray(resp *api.Response) {
+	if resp.Errno == 0 {
+		if resp.Body == nil {
+			fmt.Println(resp.Errmsg)
+		} else {
+			for _, item := range resp.Body.([]interface{}) {
+				fmt.Println(item)
+			}
+		}
+	} else {
+		fmt.Println("Command failed:", resp.Errmsg)
+	}
+}

@@ -25,3 +25,4 @@ func (self *UpdateRegionCommand) Type() cc.CommandType        { return cc.CLUSTE
 func (self *RebalanceCommand) Type() cc.CommandType           { return cc.CLUSTER_COMMAND }
 func (self *FetchMigrationTasksCommand) Type() cc.CommandType { return cc.CLUSTER_COMMAND }
 func (self *MergeSeedsCommand) Type() cc.CommandType          { return cc.REGION_COMMAND }
+func (self *MigrateRecoverCommand) Type() cc.CommandType      { return cc.CLUSTER_COMMAND }

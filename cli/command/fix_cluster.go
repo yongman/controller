@@ -27,5 +27,9 @@ func fixClusterAction(c *cli.Context) {
 		Put(err)
 		return
 	}
-	ShowResponse(resp)
+	if resp != nil {
+		ShowResponse(resp)
+	} else {
+		Put("Nil response")
+	}
 }

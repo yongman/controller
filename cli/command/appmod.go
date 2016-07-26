@@ -27,6 +27,8 @@ var AppModCommand = cli.Command{
 		cli.IntFlag{"k,migratekey", -1, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", -1, "MigrateTimeout"},
 		cli.StringFlag{"l,slavefailoverlimit", "", "Slave failover limit check"},
+		cli.IntFlag{"u,fetchinterval", -1, "Fetch cluster nodes interval"},
+		cli.IntFlag{"c,migrateconcurrency", -1, "number of migrate task running concurrently"},
 	},
 	Description: `
     update app configuraton in zookeeper
@@ -47,6 +49,8 @@ func appModAction(c *cli.Context) {
 	k := c.Int("k")
 	t := c.Int("t")
 	l := c.String("l")
+	u := c.Int("u")
+	mc := c.Int("c")
 
 	appConfig := meta.AppConfig{}
 	config, version, err := context.GetApp(appname)
@@ -103,6 +107,12 @@ func appModAction(c *cli.Context) {
 	}
 	if t != -1 {
 		appConfig.MigrateTimeout = t
+	}
+	if u != -1 && u > 0 {
+		appConfig.FetchClusterNodesInterval = time.Duration(u)
+	}
+	if mc != -1 {
+		appConfig.MigrateConcurrency = mc
 	}
 
 	out, err := json.Marshal(appConfig)

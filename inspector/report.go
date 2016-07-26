@@ -75,7 +75,9 @@ func (self *Inspector) IsClusterDamaged(cluster *topo.Cluster, seeds []*topo.Nod
 }
 
 func (self *Inspector) Run() {
-	tickChan := time.NewTicker(time.Second * 1).C
+	appconfig := meta.GetAppConfig()
+	// FetchClusterNodesInterval not support heat loading
+	tickChan := time.NewTicker(appconfig.FetchClusterNodesInterval).C
 	for {
 		select {
 		case <-tickChan:

@@ -28,6 +28,8 @@ var AppAddCommand = cli.Command{
 		cli.IntFlag{"k,migratekey", 100, "MigrateKeysEachTime"},
 		cli.IntFlag{"t,migratetimeout", 2000, "MigrateTimeout"},
 		cli.BoolFlag{"l,slavefailoverlimit", "Slave failover limit check"},
+		cli.IntFlag{"u,fetchinterval", 1, "fetch cluster nodes interval"},
+		cli.IntFlag{"c,migrateconcurrency", 10, "number of migrate tasks run concurrently"},
 	},
 	Description: `
     add app configuration to zookeeper
@@ -45,22 +47,26 @@ func appAddAction(c *cli.Context) {
 	k := c.Int("k")
 	t := c.Int("t")
 	l := c.Bool("l")
+	u := c.Int("u")
+	mc := c.Int("c")
 
 	if appname == "" {
 		fmt.Println("-n,appname must be assigned")
 		os.Exit(-1)
 	}
 	appConfig := meta.AppConfig{
-		AppName:               appname,
-		AutoEnableSlaveRead:   s,
-		AutoEnableMasterWrite: m,
-		AutoFailover:          f,
-		AutoFailoverInterval:  time.Duration(i),
-		MasterRegion:          r,
-		Regions:               strings.Split(R, ","),
-		MigrateKeysEachTime:   k,
-		MigrateTimeout:        t,
-		SlaveFailoverLimit:    l,
+		AppName:                   appname,
+		AutoEnableSlaveRead:       s,
+		AutoEnableMasterWrite:     m,
+		AutoFailover:              f,
+		AutoFailoverInterval:      time.Duration(i),
+		MasterRegion:              r,
+		Regions:                   strings.Split(R, ","),
+		MigrateKeysEachTime:       k,
+		MigrateTimeout:            t,
+		SlaveFailoverLimit:        l,
+		FetchClusterNodesInterval: time.Duration(u),
+		MigrateConcurrency:        mc,
 	}
 	out, err := json.Marshal(appConfig)
 	if err != nil {

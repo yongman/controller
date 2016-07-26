@@ -17,14 +17,10 @@ func (self *MigrateCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	cluster := cs.GetClusterSnapshot()
 	if cluster != nil {
 		mm := c.MigrateManager
-		task, err := mm.CreateTask(self.SourceId, self.TargetId, self.Ranges, cluster)
+		_, err := mm.CreateTask(self.SourceId, self.TargetId, self.Ranges, cluster)
 		if err != nil {
 			return nil, err
 		}
-		go func() {
-			task.Run()
-			mm.RemoveTask(task)
-		}()
 	} else {
 		return nil, ErrClusterSnapshotNotReady
 	}

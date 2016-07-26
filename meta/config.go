@@ -12,22 +12,26 @@ import (
 )
 
 const (
-	DEFAULT_AUTOFAILOVER_INTERVAL  time.Duration = 5 * time.Minute // 5min
-	DEFAULT_MIGRATE_KEYS_EACH_TIME               = 100
-	DEFAULT_MIGRATE_TIMEOUT                      = 2000
+	DEFAULT_AUTOFAILOVER_INTERVAL        time.Duration = 5 * time.Minute // 5min
+	DEFAULT_FETCH_CLUSTER_NODES_INTERVAL time.Duration = 1 * time.Second
+	DEFAULT_MIGRATE_KEYS_EACH_TIME                     = 100
+	DEFAULT_MIGRATE_TIMEOUT                            = 2000
+	DEFAULT_MIGRATE_CONCURRENCY                        = 3
 )
 
 type AppConfig struct {
-	AppName               string
-	AutoEnableSlaveRead   bool
-	AutoEnableMasterWrite bool
-	AutoFailover          bool
-	AutoFailoverInterval  time.Duration
-	MasterRegion          string
-	Regions               []string
-	MigrateKeysEachTime   int
-	MigrateTimeout        int
-	SlaveFailoverLimit    bool
+	AppName                   string
+	AutoEnableSlaveRead       bool
+	AutoEnableMasterWrite     bool
+	AutoFailover              bool
+	AutoFailoverInterval      time.Duration
+	MasterRegion              string
+	Regions                   []string
+	MigrateKeysEachTime       int
+	MigrateTimeout            int
+	SlaveFailoverLimit        bool
+	FetchClusterNodesInterval time.Duration
+	MigrateConcurrency        int
 }
 
 type ControllerConfig struct {
@@ -62,6 +66,12 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 				}
 				if a.AutoFailoverInterval == 0 {
 					a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
+				}
+				if a.FetchClusterNodesInterval == 0 {
+					a.FetchClusterNodesInterval = DEFAULT_FETCH_CLUSTER_NODES_INTERVAL
+				}
+				if a.MigrateConcurrency == 0 {
+					a.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
 				}
 				m.appConfig.Store(a)
 				glog.Warning("meta: app config changed.", a)
@@ -105,6 +115,12 @@ func (m *Meta) FetchAppConfig() (*AppConfig, <-chan zookeeper.Event, error) {
 	}
 	if c.AutoFailoverInterval == 0 {
 		c.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
+	}
+	if c.FetchClusterNodesInterval == 0 {
+		c.FetchClusterNodesInterval = DEFAULT_FETCH_CLUSTER_NODES_INTERVAL
+	}
+	if c.MigrateConcurrency == 0 {
+		c.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
 	}
 	return &c, watch, nil
 }
