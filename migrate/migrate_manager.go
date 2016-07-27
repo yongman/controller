@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -29,12 +30,21 @@ type MigrateManager struct {
 	tasks           []*MigrateTask
 	rebalanceTask   *RebalanceTask
 	lastTaskEndTime time.Time
+	mutex           *sync.Mutex
 }
 
 func NewMigrateManager() *MigrateManager {
-	m := &MigrateManager{tasks: []*MigrateTask{}}
+	m := &MigrateManager{tasks: []*MigrateTask{}, mutex: &sync.Mutex{}}
 	go m.CheckAndRunTask()
 	return m
+}
+
+func (m *MigrateManager) LockQ() {
+	m.mutex.Lock()
+}
+
+func (m *MigrateManager) UnLockQ() {
+	m.mutex.Unlock()
 }
 
 func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Range, cluster *topo.Cluster) (*MigrateTask, error) {
@@ -62,13 +72,16 @@ func (m *MigrateManager) AddTask(task *MigrateTask) error {
 	if err != nil {
 		return err
 	}
-
+	m.LockQ()
+	defer m.UnLockQ()
 	m.tasks = append(m.tasks, task)
 
 	return nil
 }
 
 func (m *MigrateManager) AppendTask(task *MigrateTask) error {
+	m.LockQ()
+	defer m.UnLockQ()
 	m.tasks = append(m.tasks, task)
 	return nil
 }
@@ -80,22 +93,19 @@ func (m *MigrateManager) CheckAndRunTask() {
 		case <-tickCh:
 			glog.Info("Check new migrate task, task queue length: ", len(m.tasks))
 			app := meta.GetAppConfig()
-			idx := 0
-			for _, task := range m.tasks {
-				glog.Info("Task status: ", stateNames[task.CurrentState()])
-				if task.CurrentState() == StateRunning {
-					idx++
-				} else if task.CurrentState() == StateNew {
+			for idx, task := range m.tasks {
+				glog.Infof("Task (%s) status:%s ", task.TaskName(), stateNames[task.CurrentState()])
+				if idx >= app.MigrateConcurrency {
+					break
+				}
+				if task.CurrentState() == StateNew {
 					glog.Info("Set task running ", task)
 					go task.Run()
-				} else if task.CurrentState() == StateDone {
-					glog.Info("Remove task when task is done ", task)
+				} else if task.CurrentState() == StateDone || task.CurrentState() == StateCancelled {
+					glog.Info("Remove task when task is done or be cancelled", task)
 					m.RemoveTask(task, true)
 				}
 
-				if idx > app.MigrateConcurrency {
-					break
-				}
 			}
 		}
 	}
@@ -110,6 +120,8 @@ func (m *MigrateManager) RemoveTask(task *MigrateTask, zkCascade bool) error {
 	}
 	if pos != -1 {
 		m.lastTaskEndTime = time.Now()
+		m.LockQ()
+		defer m.UnLockQ()
 		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
 		if zkCascade {
 			err := meta.RemoveMigrateTask(task.ToMeta().TaskId)
@@ -223,12 +235,13 @@ func (m *MigrateManager) handleTaskChange(task *MigrateTask, cluster *topo.Clust
 }
 
 func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
+	// 如果存在迁移任务，先跳过，等结束后再处理
+	if len(m.tasks) > 0 {
+		goto done
+	}
+
 	// 处理主节点的迁移任务重建
 	for _, node := range cluster.AllNodes() {
-		// 如果存在迁移任务，先跳过，等结束后再处理
-		if len(m.tasks) > 0 {
-			break
-		}
 		if node.Fail {
 			continue
 		}
@@ -261,19 +274,12 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 				continue
 			}
 
-			task, err := m.CreateTask(source.Id, rs.Master.Id, ranges, cluster)
+			_, err := m.CreateTask(source.Id, rs.Master.Id, ranges, cluster)
 			if err != nil {
 				log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 			} else {
 				log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with MIGRATING info"+
 					", Task(Source:%s, Target:%s).", node.Id, node.Addr(), source.Addr(), rs.Master.Addr())
-				go func(t *MigrateTask) {
-					t.Run()
-					err := m.RemoveTask(t, false)
-					if err != nil {
-						log.Warning(node.Addr(), "RemoveTask failed, %v", err)
-					}
-				}(task)
 				goto done
 			}
 		}
@@ -308,16 +314,12 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 			if target.Fail || rs.Master.Fail {
 				continue
 			}
-			task, err := m.CreateTask(rs.Master.Id, target.Id, ranges, cluster)
+			_, err := m.CreateTask(rs.Master.Id, target.Id, ranges, cluster)
 			if err != nil {
 				log.Warningf(node.Addr(), "Can not recover migrate task, %v", err)
 			} else {
 				log.Warningf(node.Addr(), "Will recover migrating task for node %s(%s) with IMPORTING info"+
 					", Task(Source:%s,Target:%s).", node.Id, node.Addr(), rs.Master.Addr(), target.Addr())
-				go func(t *MigrateTask) {
-					t.Run()
-					m.RemoveTask(t, false)
-				}(task)
 				goto done
 			}
 		}
@@ -382,8 +384,6 @@ func (m *MigrateManager) rebalance(rbtask *RebalanceTask, cluster *topo.Cluster)
 			state := plan.task.CurrentState()
 			if state != StateDone && state != StateCancelled {
 				allDone = false
-			} else {
-				m.RemoveTask(plan.task, true)
 			}
 		}
 		if allDone {
