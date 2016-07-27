@@ -100,6 +100,9 @@ func (m *MigrateManager) CheckAndRunTask() {
 				}
 				if task.CurrentState() == StateNew {
 					glog.Info("Set task running ", task)
+
+					// update task state in case of next loop state check
+					task.SetState(StateRunning)
 					go task.Run()
 				} else if task.CurrentState() == StateDone || task.CurrentState() == StateCancelled {
 					glog.Info("Remove task when task is done or be cancelled", task)
