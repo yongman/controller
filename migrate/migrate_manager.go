@@ -35,7 +35,10 @@ type MigrateManager struct {
 
 func NewMigrateManager() *MigrateManager {
 	m := &MigrateManager{tasks: []*MigrateTask{}, mutex: &sync.Mutex{}}
-	go m.CheckAndRunTask()
+	// run check goroutine in cluster leader only
+	if meta.IsClusterLeader() {
+		go m.CheckAndRunTask()
+	}
 	return m
 }
 
