@@ -35,10 +35,7 @@ type MigrateManager struct {
 
 func NewMigrateManager() *MigrateManager {
 	m := &MigrateManager{tasks: []*MigrateTask{}, mutex: &sync.Mutex{}}
-	// run check goroutine in cluster leader only
-	if meta.IsClusterLeader() {
-		go m.CheckAndRunTask()
-	}
+	go m.CheckAndRunTask()
 	return m
 }
 
@@ -119,6 +116,8 @@ func (m *MigrateManager) CheckAndRunTask() {
 
 func (m *MigrateManager) RemoveTask(task *MigrateTask, zkCascade bool) error {
 	pos := -1
+	m.LockQ()
+	defer m.UnLockQ()
 	for i, t := range m.tasks {
 		if t == task {
 			pos = i
@@ -126,8 +125,6 @@ func (m *MigrateManager) RemoveTask(task *MigrateTask, zkCascade bool) error {
 	}
 	if pos != -1 {
 		m.lastTaskEndTime = time.Now()
-		m.LockQ()
-		defer m.UnLockQ()
 		m.tasks = append(m.tasks[:pos], m.tasks[pos+1:]...)
 		if zkCascade {
 			err := meta.RemoveMigrateTask(task.ToMeta().TaskId)
@@ -333,7 +330,9 @@ func (m *MigrateManager) HandleNodeStateChange(cluster *topo.Cluster) {
 
 done:
 	for _, task := range m.tasks {
-		m.handleTaskChange(task, cluster)
+		if task.CurrentState() != StateDone {
+			m.handleTaskChange(task, cluster)
+		}
 	}
 }
 

@@ -151,7 +151,7 @@ func (self *Cluster) BuildReplicaSets() error {
 		if !s.IsMaster() {
 			master := self.FindNode(s.ParentId)
 			if master == nil {
-				glog.Info("CLUSTER", "ParentId:", s.ParentId, " Myself is ", s.Addr())
+				glog.Info("CLUSTER ", "ParentId:", s.ParentId, " Myself is ", s.Addr())
 				return ErrInvalidParentId
 			}
 
