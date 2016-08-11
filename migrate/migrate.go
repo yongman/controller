@@ -165,7 +165,6 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 		}
 	}
 
-	// 一共迁移多少个key
 	nkeys := 0
 	app := meta.GetAppConfig()
 	for {
@@ -194,8 +193,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 				}
 			}
 			if !slaveSyncDone {
-				return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry."), ""
+				// FIXME
+				// master migrate done, salve still have some keys in slot, setslot will ensure salve clear the data
+				log.Info(t.TaskName(), "source node not empty, setslot will clear")
+				//return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry."), ""
 			}
+
 			// 设置slot归属到新节点，该操作自动清理IMPORTING和MIGRATING状态
 			// 如果设置的是Source节点，设置slot归属时，Redis会确保该slot中已无剩余的key
 			trs := t.TargetReplicaSet()
