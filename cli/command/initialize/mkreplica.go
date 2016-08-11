@@ -141,6 +141,9 @@ func mkreplicaAction(c *cli.Context) {
 	}
 	meetEach(freeNodes)
 
+	fmt.Println("Wait for stable state...")
+	time.Sleep(10 * time.Second)
+
 	for _, mn := range masterNodes {
 		fmt.Printf("Node:%s\n", mn.Id)
 		resp, err := rwMasterState(mn)
