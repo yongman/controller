@@ -24,7 +24,8 @@ func (self *FailoverTakeoverCommand) Execute(c *cc.Controller) (cc.Result, error
 	if len(mm.AllTasks()) > 0 {
 		return nil, fmt.Errorf("Migrate task exists, cancel task to continue.")
 	}
-	_, err := redis.ClusterTakeover(node.Addr())
+	rs := cs.FindReplicaSetByNode(self.NodeId)
+	_, err := redis.ClusterTakeover(node.Addr(), rs)
 	if err != nil {
 		return nil, err
 	}

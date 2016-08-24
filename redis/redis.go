@@ -87,13 +87,35 @@ func IsAlive(addr string) bool {
 }
 
 /// Cluster
-
-func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool) error {
+func ReplicateTarget(addr string, targetId string) error {
 	conn, err := dial(addr)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+	_, err = redis.String(conn.Do("cluster", "replicate", targetId))
+	return err
+}
+
+func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool, rs *topo.ReplicaSet) error {
+	conn, err := dial(addr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	// FIXME PART1
+	targetId := ""
+	nodesAddr := []string{}
+	for _, node := range rs.AllNodes() {
+		if node.Addr() == addr {
+			//new master id
+			targetId = node.Id
+		} else {
+			//slaves address
+			nodesAddr = append(nodesAddr, node.Addr())
+		}
+	}
 
 	//change failover force to failover takeover, in case of arbiter vote
 	if takeover {
@@ -104,6 +126,13 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool) erro
 
 	if err != nil {
 		return err
+	}
+
+	// FIXME PART2
+	for _, na := range nodesAddr {
+		time.Sleep(5 * time.Second)
+		log.Info(na, "replicate to ", targetId)
+		ReplicateTarget(na, targetId)
 	}
 
 	if !waitSyncDone {
@@ -287,12 +316,25 @@ func EnableWrite(addr, id string) (string, error) {
 	return ClusterChmod(addr, id, "+w")
 }
 
-func ClusterFailover(addr string) (string, error) {
+func ClusterFailover(addr string, rs *topo.ReplicaSet) (string, error) {
 	conn, err := dial(addr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
 	defer conn.Close()
+
+	// FIXME PART1
+	targetId := ""
+	nodesAddr := []string{}
+	for _, node := range rs.AllNodes() {
+		if node.Addr() == addr {
+			//new master id
+			targetId = node.Id
+		} else {
+			//slaves address
+			nodesAddr = append(nodesAddr, node.Addr())
+		}
+	}
 
 	// 先正常Failover试试，如果主挂了再试试Force
 	resp, err := redis.String(conn.Do("cluster", "failover"))
@@ -304,6 +346,13 @@ func ClusterFailover(addr string) (string, error) {
 			return "", err
 		}
 	}
+
+	//FIXME PART2
+	for _, na := range nodesAddr {
+		time.Sleep(5 * time.Second)
+		ReplicateTarget(na, targetId)
+	}
+
 	// 30s
 	for i := 0; i < 30; i++ {
 		info, err := FetchInfo(addr, "Replication")
@@ -319,16 +368,35 @@ func ClusterFailover(addr string) (string, error) {
 	return resp, nil
 }
 
-func ClusterTakeover(addr string) (string, error) {
+func ClusterTakeover(addr string, rs *topo.ReplicaSet) (string, error) {
 	conn, err := dial(addr)
 	if err != nil {
 		return "", ErrConnFailed
 	}
 	defer conn.Close()
 
+	// FIXME PART1
+	targetId := ""
+	nodesAddr := []string{}
+	for _, node := range rs.AllNodes() {
+		if node.Addr() == addr {
+			//new master id
+			targetId = node.Id
+		} else {
+			//slaves address
+			nodesAddr = append(nodesAddr, node.Addr())
+		}
+	}
+
 	resp, err := redis.String(conn.Do("cluster", "failover", "takeover"))
 	if err != nil {
 		return "", err
+	}
+
+	//FIXME PART2
+	for _, na := range nodesAddr {
+		time.Sleep(5 * time.Second)
+		ReplicateTarget(na, targetId)
 	}
 
 	// 30s

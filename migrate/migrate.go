@@ -194,7 +194,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 			}
 			if !slaveSyncDone {
 				// FIXME
-				// master migrate done, salve still have some keys in slot, setslot will ensure salve clear the data
+				// master migrate done, slave still have some keys in slot, setslot will ensure slave clear the data
 				log.Info(t.TaskName(), "source node not empty, setslot will clear")
 				//return nkeys, fmt.Errorf("mig: source nodes not all empty, will retry."), ""
 			}
