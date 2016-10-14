@@ -40,6 +40,7 @@ var cmds = []cli.Command{
 	initialize.AddRegionCommand,
 	c.CheckReplicaCommand,
 	c.FixClusterCommand,
+	c.PdoCommand,
 }
 
 const (
