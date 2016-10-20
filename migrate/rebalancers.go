@@ -76,3 +76,49 @@ func CutTailRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) 
 
 	return plans
 }
+
+func MergerRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) {
+	//ts should be nil
+	//we calculate merger scheme accroding the current slot's distribution
+	nodesCount := len(ss)
+	if nodesCount == 0 {
+		return nil
+	}
+
+	ps := -1
+	pt := 0
+	for _, s := range ss {
+		if ps < len(s.Ranges) {
+			ps = len(s.Ranges)
+		}
+	}
+	ps = ps + 1
+	pt = ps - 1
+
+	for _, s := range ss {
+		if len(s.Ranges) == pt {
+			//this slots should be split to merge their buddy
+			for _, r := range s.Ranges {
+				//find the range's buddy
+				for _, si := range ss {
+					if s == si {
+						continue
+					}
+					for _, ri := range si.Ranges {
+						if r.Left == ri.Right+1 {
+							//buddy found
+							//generate a plan
+							plan := &MigratePlan{
+								SourceId: s.Id,
+								TargetId: si.Id,
+								Ranges:   []topo.Range{r},
+							}
+							plans = append(plans, plan)
+						}
+					}
+				}
+			}
+		}
+	}
+	return plans
+}

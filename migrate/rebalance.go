@@ -17,8 +17,9 @@ type RebalanceTask struct {
 type Rebalancer func(ss []*topo.Node, ts []*topo.Node) []*MigratePlan
 
 var RebalancerTable = map[string]Rebalancer{
-	"default": CutTailRebalancer,
-	"cuttail": CutTailRebalancer,
+	"default":   CutTailRebalancer,
+	"cuttail":   CutTailRebalancer,
+	"mergetail": MergerRebalancer,
 }
 
 func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []string) ([]*MigratePlan, error) {
@@ -40,31 +41,40 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 			ss = append(ss, master)
 		}
 	}
-
-	var ts []*topo.Node
-	// 如果没传TargetId，则选择所有可以作为迁移目标的rs
-	if len(targetIds) == 0 {
-		for _, node := range tm {
-			ts = append(ts, node)
+	if method == "mergetail" {
+		rebalancer := RebalancerTable[method]
+		if rebalancer == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
 		}
+		plans := rebalancer(ss, nil)
+		return plans, nil
 	} else {
-		for _, id := range targetIds {
-			if tm[id] == nil {
-				return nil, fmt.Errorf("Master %s not found.", id)
+
+		var ts []*topo.Node
+		// 如果没传TargetId，则选择所有可以作为迁移目标的rs
+		if len(targetIds) == 0 {
+			for _, node := range tm {
+				ts = append(ts, node)
 			}
-			ts = append(ts, tm[id])
+		} else {
+			for _, id := range targetIds {
+				if tm[id] == nil {
+					return nil, fmt.Errorf("Master %s not found.", id)
+				}
+				ts = append(ts, tm[id])
+			}
 		}
-	}
 
-	if len(ts) == 0 {
-		return nil, fmt.Errorf("No available empty target replicasets.")
-	}
+		if len(ts) == 0 {
+			return nil, fmt.Errorf("No available empty target replicasets.")
+		}
 
-	rebalancer := RebalancerTable[method]
-	if rebalancer == nil {
-		return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		rebalancer := RebalancerTable[method]
+		if rebalancer == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		}
+		plans := rebalancer(ss, ts)
+		return plans, nil
 	}
-	plans := rebalancer(ss, ts)
-
-	return plans, nil
+	return nil, nil
 }

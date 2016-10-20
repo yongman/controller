@@ -48,16 +48,12 @@ func (m *MigrateManager) UnLockQ() {
 }
 
 func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Range, cluster *topo.Cluster) (*MigrateTask, error) {
-	task := m.FindTaskBySource(sourceId)
-	if task != nil {
-		return nil, ErrMigrateAlreadyExist
-	}
 	sourceRS := cluster.FindReplicaSetByNode(sourceId)
 	targetRS := cluster.FindReplicaSetByNode(targetId)
 	if sourceRS == nil || targetRS == nil {
 		return nil, ErrReplicatSetNotFound
 	}
-	task = NewMigrateTask(cluster, sourceRS, targetRS, ranges)
+	task := NewMigrateTask(cluster, sourceRS, targetRS, ranges)
 	err := m.AddTask(task)
 	if err != nil {
 		return nil, err
@@ -66,11 +62,13 @@ func (m *MigrateManager) CreateTask(sourceId, targetId string, ranges []topo.Ran
 }
 
 func (m *MigrateManager) AddTask(task *MigrateTask) error {
-	//add task to zk
-	taskMeta := task.ToMeta()
-	err := meta.AddMigrateTask(taskMeta)
-	if err != nil {
-		return err
+	if len(task.ranges) != 1 || task.ranges[0].Left+1 != task.ranges[0].Right {
+		//add task to zk
+		taskMeta := task.ToMeta()
+		err := meta.AddMigrateTask(taskMeta)
+		if err != nil {
+			return err
+		}
 	}
 	m.LockQ()
 	defer m.UnLockQ()
