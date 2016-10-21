@@ -222,6 +222,7 @@ func (fe *FrontEnd) HandleRebalance(c *gin.Context) {
 
 	cmd := command.RebalanceCommand{
 		Method:       params.Method,
+		Ratio:        params.Ratio,
 		TargetIds:    params.TargetIds,
 		ShowPlanOnly: params.ShowPlanOnly,
 	}

@@ -169,11 +169,19 @@ func (self *Cluster) BuildReplicaSets() error {
 
 type ByMasterId []*ReplicaSet
 type ByNodeState []*ReplicaSet
+type ByNodeSlot []*Node
 
 // sort by master id
 func (a ByMasterId) Len() int           { return len(a) }
 func (a ByMasterId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByMasterId) Less(i, j int) bool { return a[i].Master.Id < a[j].Master.Id }
+
+// sort by master slot left range
+func (a ByNodeSlot) Len() int      { return len(a) }
+func (a ByNodeSlot) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByNodeSlot) Less(i, j int) bool {
+	return a[i].Ranges[0].Left < a[j].Ranges[0].Left
+}
 
 // sort replicas by node state
 func (a ByNodeState) Len() int      { return len(a) }

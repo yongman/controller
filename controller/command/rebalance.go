@@ -7,6 +7,7 @@ import (
 
 type RebalanceCommand struct {
 	Method       string
+	Ratio        int
 	TargetIds    []string
 	ShowPlanOnly bool
 }
@@ -21,7 +22,7 @@ func (self *RebalanceCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		self.Method = "default"
 	}
 
-	plans, err := migrate.GenerateRebalancePlan(self.Method, cluster, self.TargetIds)
+	plans, err := migrate.GenerateRebalancePlan(self.Method, cluster, self.TargetIds, self.Ratio)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"math"
+	"sort"
 
 	"github.com/ksarch-saas/cc/topo"
 )
@@ -77,8 +78,7 @@ func CutTailRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) 
 	return plans
 }
 
-func MergerRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) {
-	//ts should be nil
+func MergerTailRebalancer(ss []*topo.Node, ratio int) (plans []*MigratePlan) {
 	//we calculate merger scheme accroding the current slot's distribution
 	nodesCount := len(ss)
 	if nodesCount == 0 {
@@ -118,6 +118,36 @@ func MergerRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) {
 					}
 				}
 			}
+		}
+	}
+	return plans
+}
+
+func MergeAllRebalancer(ss []*topo.Node, ratio int) (plans []*MigratePlan) {
+	if len(ss) < 2 {
+		return nil
+	}
+	if len(ss)%ratio != 0 {
+		return nil
+	}
+	sort.Sort(topo.ByNodeSlot(ss))
+
+	var targetId string
+	var sourceId string
+	for idx, s := range ss {
+		if idx%ratio == 0 {
+			//choose as target
+			targetId = s.Id
+		} else {
+			//choose as source
+			sourceId = s.Id
+			//generate a plan
+			plan := &MigratePlan{
+				SourceId: sourceId,
+				TargetId: targetId,
+				Ranges:   s.Ranges,
+			}
+			plans = append(plans, plan)
 		}
 	}
 	return plans

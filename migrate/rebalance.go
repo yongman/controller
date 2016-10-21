@@ -15,14 +15,19 @@ type RebalanceTask struct {
 }
 
 type Rebalancer func(ss []*topo.Node, ts []*topo.Node) []*MigratePlan
+type Merger func(ss []*topo.Node, ratio int) []*MigratePlan
 
 var RebalancerTable = map[string]Rebalancer{
-	"default":   CutTailRebalancer,
-	"cuttail":   CutTailRebalancer,
-	"mergetail": MergerRebalancer,
+	"default": CutTailRebalancer,
+	"cuttail": CutTailRebalancer,
 }
 
-func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []string) ([]*MigratePlan, error) {
+var MergerTable = map[string]Merger{
+	"mergetail": MergerTailRebalancer,
+	"mergeall":  MergeAllRebalancer,
+}
+
+func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []string, ratio int) ([]*MigratePlan, error) {
 	rss := cluster.ReplicaSets()
 	regions := meta.AllRegions()
 
@@ -42,11 +47,18 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 		}
 	}
 	if method == "mergetail" {
-		rebalancer := RebalancerTable[method]
-		if rebalancer == nil {
+		merger := MergerTable[method]
+		if merger == nil {
 			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
 		}
-		plans := rebalancer(ss, nil)
+		plans := merger(ss, 0)
+		return plans, nil
+	} else if method == "mergeall" {
+		merger := MergerTable[method]
+		if merger == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		}
+		plans := merger(ss, ratio)
 		return plans, nil
 	} else {
 
