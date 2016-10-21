@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -19,6 +20,7 @@ var (
 	ErrServer      = errors.New("redis: server error")
 	ErrInvalidAddr = errors.New("redis: invalid address string")
 	poolMap        map[string]*redis.Pool //redis connection pool for each server
+	poolMutex      *sync.RWMutex
 )
 
 const (
@@ -28,7 +30,7 @@ const (
 	SLOT_NODE      = "NODE"
 
 	NUM_RETRY     = 3
-	CONN_TIMEOUT  = 1 * time.Second
+	CONN_TIMEOUT  = 5 * time.Second
 	READ_TIMEOUT  = 120 * time.Second
 	WRITE_TIMEOUT = 120 * time.Second
 )
@@ -37,10 +39,14 @@ func dial(addr string) (redis.Conn, error) {
 	if poolMap == nil {
 		poolMap = make(map[string]*redis.Pool)
 	}
+	if poolMutex == nil {
+		poolMutex = &sync.RWMutex{}
+	}
 
 	inner := func(addr string) (redis.Conn, error) {
 		if _, ok := poolMap[addr]; !ok {
 			//not exist in map
+			poolMutex.Lock()
 			poolMap[addr] = &redis.Pool{
 				MaxIdle:     3,
 				IdleTimeout: 240 * time.Second,
@@ -56,8 +62,11 @@ func dial(addr string) (redis.Conn, error) {
 					return err
 				},
 			}
+			poolMutex.Unlock()
 		}
+		poolMutex.RLock()
 		pool, ok := poolMap[addr]
+		poolMutex.RUnlock()
 		if ok {
 			return pool.Get(), nil
 		} else {
