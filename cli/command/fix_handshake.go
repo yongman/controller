@@ -72,8 +72,8 @@ func fixHandshakeAction(c *cli.Context) {
 	}
 
 	//send forget to need fix nodes
-	for _, seed := range seedNodes {
-		for _, failed := range allFailedNodes {
+	for _, failed := range allFailedNodes {
+		for _, seed := range seedNodes {
 			resp, err := redis.ClusterForget(seed, failed)
 			if err != nil {
 				fmt.Println(err)

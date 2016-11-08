@@ -51,7 +51,7 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 			if parent != nil && !parent.IsMaster() {
 				grandpa := cs.FindNode(parent.ParentId)
 				if grandpa != nil {
-					_, err := redis.ClusterReplicate(node.Addr(), grandpa.Addr())
+					_, err := redis.ClusterReplicate(node.Addr(), grandpa.Id)
 					if err == nil {
 						log.Warningf(node.Addr(), "Fix chained replication, (%s->%s->%s)=>(%s->%s)",
 							node, parent, grandpa, node, grandpa)

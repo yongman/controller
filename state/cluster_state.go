@@ -93,7 +93,7 @@ func (cs *ClusterState) BuildClusterSnapshot() {
 	err := cluster.BuildReplicaSets()
 	// 出现这种情况，很可能是启动时节点还不全
 	if err != nil {
-		log.Info("CLUSTER", "Build cluster snapshot failed ", err)
+		log.Info("CLUSTER ", "Build cluster snapshot failed ", err)
 		return
 	}
 	cs.cluster = cluster
