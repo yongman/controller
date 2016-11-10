@@ -44,7 +44,10 @@ func dial(addr string) (redis.Conn, error) {
 	}
 
 	inner := func(addr string) (redis.Conn, error) {
-		if _, ok := poolMap[addr]; !ok {
+		poolMutex.RLock()
+		_, ok := poolMap[addr]
+		poolMutex.RUnlock()
+		if !ok {
 			//not exist in map
 			poolMutex.Lock()
 			poolMap[addr] = &redis.Pool{
