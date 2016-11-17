@@ -10,6 +10,8 @@ import (
 )
 
 var (
+	ERR_LOG_TRAN_REGION = errors.New("Logic room transfer region room failed")
+
 	ERR_NODES_NUMBER = errors.New("Nodes number invalid")
 
 	REDIS_CLUSTER_SLOTS = 16384
@@ -28,6 +30,15 @@ type Node struct {
 	Empty      bool
 	Met        bool
 	Chosen     bool
+}
+
+var IdcMap = map[string]string{
+	"jx":   "bj",
+	"tc":   "bj",
+	"nj":   "nj",
+	"nj03": "nj",
+	"gz":   "gz",
+	"hz":   "hz",
 }
 
 func splitLineFunc(r rune) bool {
@@ -260,6 +271,36 @@ func buildCluster(nodes []*Node, replicas int, masterRooms, allRooms []string) (
 	if len(mRegionRepli) > 0 && len(mRegionRepli)%masterNum != 0 {
 		return nil, ERR_NODES_NUMBER
 	}
+
+	//在此对节点组织方式进行转换：逻辑机房==>物理地域
+	//repliNodes index是逻辑机房，repliRegionNodes index是物理地域
+	temp_repliNodes := map[string][]*Node{}
+	logicNodesNum := 0
+	for r, nodes := range repliNodes {
+		logicNodesNum += len(nodes)
+		for l, re := range IdcMap {
+			if r == l {
+				temp_repliNodes[re] = append(temp_repliNodes[re], nodes...)
+			}
+		}
+	}
+	regionNodesNum := 0
+	for _, nodes := range temp_repliNodes {
+		regionNodesNum += len(nodes)
+	}
+	if logicNodesNum != regionNodesNum {
+		return nil, ERR_LOG_TRAN_REGION
+	}
+	repliNodes = temp_repliNodes
+	var temp_otherRooms []string
+	for _, r := range otherRooms {
+		for l, re := range IdcMap {
+			if r == l {
+				temp_otherRooms = append(temp_otherRooms, re)
+			}
+		}
+	}
+	otherRooms = temp_otherRooms
 
 	//非主地域node个数检查
 	for _, r := range otherRooms {
