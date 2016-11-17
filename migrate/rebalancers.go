@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"math"
+	"sort"
 
 	"github.com/ksarch-saas/cc/topo"
 )
@@ -74,5 +75,80 @@ func CutTailRebalancer(ss []*topo.Node, ts []*topo.Node) (plans []*MigratePlan) 
 		plans = append(plans, subPlans...)
 	}
 
+	return plans
+}
+
+func MergerTailRebalancer(ss []*topo.Node, ratio int) (plans []*MigratePlan) {
+	//we calculate merger scheme accroding the current slot's distribution
+	nodesCount := len(ss)
+	if nodesCount == 0 {
+		return nil
+	}
+
+	ps := -1
+	pt := 0
+	for _, s := range ss {
+		if ps < len(s.Ranges) {
+			ps = len(s.Ranges)
+		}
+	}
+	ps = ps + 1
+	pt = ps - 1
+
+	for _, s := range ss {
+		if len(s.Ranges) == pt {
+			//this slots should be split to merge their buddy
+			for _, r := range s.Ranges {
+				//find the range's buddy
+				for _, si := range ss {
+					if s == si {
+						continue
+					}
+					for _, ri := range si.Ranges {
+						if r.Left == ri.Right+1 {
+							//buddy found
+							//generate a plan
+							plan := &MigratePlan{
+								SourceId: s.Id,
+								TargetId: si.Id,
+								Ranges:   []topo.Range{r},
+							}
+							plans = append(plans, plan)
+						}
+					}
+				}
+			}
+		}
+	}
+	return plans
+}
+
+func MergeAllRebalancer(ss []*topo.Node, ratio int) (plans []*MigratePlan) {
+	if len(ss) < 2 {
+		return nil
+	}
+	if len(ss)%ratio != 0 {
+		return nil
+	}
+	sort.Sort(topo.ByNodeSlot(ss))
+
+	var targetId string
+	var sourceId string
+	for idx, s := range ss {
+		if idx%ratio == 0 {
+			//choose as target
+			targetId = s.Id
+		} else {
+			//choose as source
+			sourceId = s.Id
+			//generate a plan
+			plan := &MigratePlan{
+				SourceId: sourceId,
+				TargetId: targetId,
+				Ranges:   s.Ranges,
+			}
+			plans = append(plans, plan)
+		}
+	}
 	return plans
 }

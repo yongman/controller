@@ -53,6 +53,7 @@ type MakeReplicaSetParams struct {
 
 type RebalanceParams struct {
 	Method       string   `json:"method"`
+	Ratio        int      `json:"ratio"`
 	TargetIds    []string `json:"target_ids"`
 	ShowPlanOnly bool     `json:"show_plan_only"`
 }

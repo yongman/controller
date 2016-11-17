@@ -182,6 +182,20 @@ func (m *Meta) MarkFailoverDoing(record *FailoverRecord) error {
 	return nil
 }
 
+func (m *Meta) DoingFailoverRecord() (*FailoverRecord, error) {
+	data, _, err := m.zconn.Get("/r3/failover/doing")
+	if err != nil {
+		return nil, err
+	}
+
+	var record FailoverRecord
+	err = json.Unmarshal([]byte(data), &record)
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 func (m *Meta) UnmarkFailoverDoing() error {
 	err := m.zconn.Delete("/r3/failover/doing", -1)
 	if err != nil {

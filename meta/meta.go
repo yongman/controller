@@ -145,6 +145,10 @@ func IsDoingFailover() (bool, error) {
 	return meta.IsDoingFailover()
 }
 
+func DoingFailoverRecord() (*FailoverRecord, error) {
+	return meta.DoingFailoverRecord()
+}
+
 func LastFailoverTime() (*time.Time, error) {
 	r, err := meta.LastFailoverRecord()
 	if err != nil {

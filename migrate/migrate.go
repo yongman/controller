@@ -258,6 +258,10 @@ func (t *MigrateTask) Run() {
 	if t.CurrentState() == StateNew {
 		t.SetState(StateRunning)
 	}
+	if t.CurrentState() == StateCancelling {
+		t.SetState(StateCancelled)
+		return
+	}
 	prev_key := ""
 	timeout_cnt := 0
 	for i, r := range t.ranges {

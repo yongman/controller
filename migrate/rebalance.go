@@ -15,13 +15,19 @@ type RebalanceTask struct {
 }
 
 type Rebalancer func(ss []*topo.Node, ts []*topo.Node) []*MigratePlan
+type Merger func(ss []*topo.Node, ratio int) []*MigratePlan
 
 var RebalancerTable = map[string]Rebalancer{
 	"default": CutTailRebalancer,
 	"cuttail": CutTailRebalancer,
 }
 
-func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []string) ([]*MigratePlan, error) {
+var MergerTable = map[string]Merger{
+	"mergetail": MergerTailRebalancer,
+	"mergeall":  MergeAllRebalancer,
+}
+
+func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []string, ratio int) ([]*MigratePlan, error) {
 	rss := cluster.ReplicaSets()
 	regions := meta.AllRegions()
 
@@ -40,31 +46,47 @@ func GenerateRebalancePlan(method string, cluster *topo.Cluster, targetIds []str
 			ss = append(ss, master)
 		}
 	}
-
-	var ts []*topo.Node
-	// 如果没传TargetId，则选择所有可以作为迁移目标的rs
-	if len(targetIds) == 0 {
-		for _, node := range tm {
-			ts = append(ts, node)
+	if method == "mergetail" {
+		merger := MergerTable[method]
+		if merger == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
 		}
+		plans := merger(ss, 0)
+		return plans, nil
+	} else if method == "mergeall" {
+		merger := MergerTable[method]
+		if merger == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		}
+		plans := merger(ss, ratio)
+		return plans, nil
 	} else {
-		for _, id := range targetIds {
-			if tm[id] == nil {
-				return nil, fmt.Errorf("Master %s not found.", id)
+
+		var ts []*topo.Node
+		// 如果没传TargetId，则选择所有可以作为迁移目标的rs
+		if len(targetIds) == 0 {
+			for _, node := range tm {
+				ts = append(ts, node)
 			}
-			ts = append(ts, tm[id])
+		} else {
+			for _, id := range targetIds {
+				if tm[id] == nil {
+					return nil, fmt.Errorf("Master %s not found.", id)
+				}
+				ts = append(ts, tm[id])
+			}
 		}
-	}
 
-	if len(ts) == 0 {
-		return nil, fmt.Errorf("No available empty target replicasets.")
-	}
+		if len(ts) == 0 {
+			return nil, fmt.Errorf("No available empty target replicasets.")
+		}
 
-	rebalancer := RebalancerTable[method]
-	if rebalancer == nil {
-		return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		rebalancer := RebalancerTable[method]
+		if rebalancer == nil {
+			return nil, fmt.Errorf("Rebalancing method %s not exist.", method)
+		}
+		plans := rebalancer(ss, ts)
+		return plans, nil
 	}
-	plans := rebalancer(ss, ts)
-
-	return plans, nil
+	return nil, nil
 }

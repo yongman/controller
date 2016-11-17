@@ -41,6 +41,7 @@ var cmds = []cli.Command{
 	c.CheckReplicaCommand,
 	c.FixClusterCommand,
 	c.PdoCommand,
+	c.DisableduplicatedCommand,
 }
 
 const (

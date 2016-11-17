@@ -167,6 +167,18 @@ var (
 			return false
 		}
 		if doing {
+			// get doing failover record, if record last for more than 1min, delete doing record
+			record, err := meta.DoingFailoverRecord()
+			if err == nil {
+				if record.Timestamp.Add(1 * time.Millisecond).Before(time.Now()) {
+					err = meta.UnmarkFailoverDoing()
+					if err != nil {
+						log.Warning(ns.Addr(), "UnmarkFailoverDoing failed last for 1 min, %v", err)
+					}
+					log.Infof(ns.Addr(), "UnmarkFailoverDoing last for 1 min")
+				}
+			}
+
 			log.Warning(ns.Addr(), "There is another failover doing")
 			return false
 		}

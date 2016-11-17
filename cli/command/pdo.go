@@ -44,25 +44,25 @@ func pdoAction(c *cli.Context) {
 	for _, arg := range c.Args()[1:] {
 		args = append(args, arg)
 	}
-	fmt.Println(cmd)
-	fmt.Println(args)
 
-	//resChan := make(chan interface{}, 1000)
 	totalNodes := 0
+
+	resChan := make(chan string, 2048)
 
 	for _, rs := range rss.ReplicaSets {
 		totalNodes += len(rs.AllNodes())
 		for _, n := range rs.AllNodes() {
-			go func() {
-				res, _ := redis.RedisCli(n.Addr(), cmd, args...)
-				//resChan := <-res
-				fmt.Printf("%s\r\n", res)
-			}()
+			go func(addr string) {
+				res, _ := redis.RedisCli(addr, cmd, args...)
+				ret := fmt.Sprintf("%s %s", addr, res)
+				resChan <- ret
+			}(n.Addr())
 		}
 	}
-
 	for i := 0; i < totalNodes; i++ {
-		//res := <-resChan
-		//fmt.Println(res)
+		ret := <-resChan
+		fmt.Println(ret)
 	}
+	fmt.Println("Total nodes:", totalNodes)
+
 }
