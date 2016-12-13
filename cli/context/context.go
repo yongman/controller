@@ -56,6 +56,10 @@ func GetControllerConfig() meta.ControllerConfig {
 	return controllerConfig
 }
 
+func GetAppConfig() meta.AppConfig {
+	return appConfig
+}
+
 func SetApp(appName string, zkAddr string) error {
 	appContextName = appName
 	zconn, _, err := meta.DialZk(zkAddr)
