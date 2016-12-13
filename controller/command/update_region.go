@@ -45,7 +45,7 @@ func (self *UpdateRegionCommand) Execute(c *cc.Controller) (cc.Result, error) {
 			}
 		}
 		// Fix chained replication: slave's parent is slave.
-		if !node.IsMaster() {
+		if meta.LocalRegion() == self.Region && !node.IsMaster() {
 			parent := cs.FindNode(node.ParentId)
 			// Parent is not master?
 			if parent != nil && !parent.IsMaster() {

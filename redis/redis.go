@@ -116,19 +116,6 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool, rs *
 	}
 	defer conn.Close()
 
-	// FIXME PART1
-	targetId := ""
-	nodesAddr := []string{}
-	for _, node := range rs.AllNodes() {
-		if node.Addr() == addr {
-			//new master id
-			targetId = node.Id
-		} else {
-			//slaves address
-			nodesAddr = append(nodesAddr, node.Addr())
-		}
-	}
-
 	//change failover force to failover takeover, in case of arbiter vote
 	if takeover {
 		_, err = redis.String(conn.Do("cluster", "failover", "takeover"))
@@ -138,13 +125,6 @@ func SetAsMasterWaitSyncDone(addr string, waitSyncDone bool, takeover bool, rs *
 
 	if err != nil {
 		return err
-	}
-
-	// FIXME PART2
-	for _, na := range nodesAddr {
-		time.Sleep(5 * time.Second)
-		log.Info(na, "replicate to ", targetId)
-		ReplicateTarget(na, targetId)
 	}
 
 	if !waitSyncDone {
@@ -335,19 +315,6 @@ func ClusterFailover(addr string, rs *topo.ReplicaSet) (string, error) {
 	}
 	defer conn.Close()
 
-	// FIXME PART1
-	targetId := ""
-	nodesAddr := []string{}
-	for _, node := range rs.AllNodes() {
-		if node.Addr() == addr {
-			//new master id
-			targetId = node.Id
-		} else {
-			//slaves address
-			nodesAddr = append(nodesAddr, node.Addr())
-		}
-	}
-
 	// 先正常Failover试试，如果主挂了再试试Force
 	resp, err := redis.String(conn.Do("cluster", "failover"))
 	if err != nil {
@@ -357,12 +324,6 @@ func ClusterFailover(addr string, rs *topo.ReplicaSet) (string, error) {
 		if err != nil {
 			return "", err
 		}
-	}
-
-	//FIXME PART2
-	for _, na := range nodesAddr {
-		time.Sleep(5 * time.Second)
-		ReplicateTarget(na, targetId)
 	}
 
 	// 30s
@@ -387,28 +348,9 @@ func ClusterTakeover(addr string, rs *topo.ReplicaSet) (string, error) {
 	}
 	defer conn.Close()
 
-	// FIXME PART1
-	targetId := ""
-	nodesAddr := []string{}
-	for _, node := range rs.AllNodes() {
-		if node.Addr() == addr {
-			//new master id
-			targetId = node.Id
-		} else {
-			//slaves address
-			nodesAddr = append(nodesAddr, node.Addr())
-		}
-	}
-
 	resp, err := redis.String(conn.Do("cluster", "failover", "takeover"))
 	if err != nil {
 		return "", err
-	}
-
-	//FIXME PART2
-	for _, na := range nodesAddr {
-		time.Sleep(5 * time.Second)
-		ReplicateTarget(na, targetId)
 	}
 
 	// 30s
