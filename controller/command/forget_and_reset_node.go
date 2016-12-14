@@ -8,6 +8,8 @@ import (
 	"github.com/ksarch-saas/cc/log"
 	"github.com/ksarch-saas/cc/meta"
 	"github.com/ksarch-saas/cc/redis"
+	"github.com/ksarch-saas/cc/topo"
+	"github.com/ksarch-saas/cc/state"
 )
 
 type ForgetAndResetNodeCommand struct {
@@ -30,36 +32,57 @@ func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, err
 	var err error
 	forgetCount := 0
 	allForgetDone := true
+	resChan := make(chan int, 100)
 	// 1. 所有节点发送Forget
 	for _, ns := range cs.AllNodeStates() {
 		if ns.Id() == target.Id {
 			continue
 		}
-		node := ns.Node()
-		_, err = redis.ClusterForget(ns.Addr(), target.Id)
-		if !node.Fail && err != nil && !strings.HasPrefix(err.Error(), "ERR Unknown node") {
-			allForgetDone = false
-			log.Warningf(target.Addr(), "Forget node %s(%s) failed, %v", ns.Addr(), ns.Id(), err)
-			continue
-		} else if !node.Fail && err != nil {
-			//try again
-			for try := redis.NUM_RETRY; try >= 0; try-- {
-				_, err = redis.ClusterForget(ns.Addr(), target.Id)
-				if err == nil {
-					break
+
+		go func(nodeState *state.NodeState, target *topo.Node) {
+			targetId := target.Id
+			node := ns.Node()
+			ret := 1
+			_, err = redis.ClusterForget(nodeState.Addr(), targetId)
+
+			if !node.Fail && err != nil && !strings.HasPrefix(err.Error(), "ERR Unknown node") {
+				allForgetDone = false
+				log.Warningf(target.Addr(), "Forget node %s(%s) failed, %v", ns.Addr(), ns.Id(), err)
+				ret = 0
+			} else if !node.Fail && err != nil {
+				//try again
+				for try := redis.NUM_RETRY; try >= 0; try-- {
+					_, err = redis.ClusterForget(nodeState.Addr(), target.Id)
+					if err == nil {
+						break
+					}
+				}
+				//execute failed after retry
+				if err != nil {
+					allForgetDone = false
+					log.Warningf(target.Addr(), "Forget node %s(%s) failed after retry, %v", ns.Addr(), ns.Id(), err)
+					ret = 0
 				}
 			}
-			//execute failed after retry
-			if err != nil {
-				allForgetDone = false
-				log.Warningf(target.Addr(), "Forget node %s(%s) failed after retry, %v", ns.Addr(), ns.Id(), err)
-				continue
+			
+			if ret == 1 {
+				log.Eventf(target.Addr(), "Forget by %s(%s).", nodeState.Addr(), nodeState.Id())
 			}
+			
+			resChan <- ret
+		}(ns, target)
 
-		}
-		log.Eventf(target.Addr(), "Forget by %s(%s).", ns.Addr(), ns.Id())
-		forgetCount++
 	}
+
+	for i := 0; i < len(cs.AllNodeStates())-1; i++ {
+		res := <-resChan
+		if res == 0 {
+			allForgetDone = false
+		} else {
+			forgetCount++
+		}
+	}
+
 	if !allForgetDone {
 		return nil, fmt.Errorf("Not all forget done, only (%d/%d) success",
 			forgetCount, len(cs.AllNodeStates())-1)
