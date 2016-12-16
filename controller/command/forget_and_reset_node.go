@@ -32,7 +32,7 @@ func (self *ForgetAndResetNodeCommand) Execute(c *cc.Controller) (cc.Result, err
 	var err error
 	forgetCount := 0
 	allForgetDone := true
-	resChan := make(chan int, 100)
+	resChan := make(chan int, 2048)
 	// 1. 所有节点发送Forget
 	for _, ns := range cs.AllNodeStates() {
 		if ns.Id() == target.Id {
