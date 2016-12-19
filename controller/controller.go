@@ -2,9 +2,12 @@ package controller
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/ksarch-saas/cc/log"
 	"github.com/ksarch-saas/cc/meta"
 	"github.com/ksarch-saas/cc/migrate"
 	"github.com/ksarch-saas/cc/state"
@@ -44,6 +47,14 @@ func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (res
 	}
 
 	// 一次处理一条命令，也即同一时间只能在做一个状态变换
+	commandType := strings.Split(reflect.TypeOf(command).String(), ".")
+	commandName := ""
+	if len(commandType) == 2 && commandType[1] != "UpdateRegionCommand" {
+		commandName = commandType[1]
+	}
+	if commandName != "" {
+		log.Infof("OP", "Command: %s, Event:Start", commandName)
+	}
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -66,6 +77,9 @@ func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (res
 	case err = <-errorCh:
 	case <-time.After(timeout):
 		err = ErrProcessCommandTimedout
+	}
+	if commandName != "" {
+		log.Infof("OP", "Command: %s, Event:End", commandName)
 	}
 	return
 }
