@@ -42,6 +42,7 @@ var cmds = []cli.Command{
 	c.FixClusterCommand,
 	c.PdoCommand,
 	c.DisableduplicatedCommand,
+	c.GenerateRdbPathCommand,
 }
 
 const (
