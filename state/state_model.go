@@ -14,6 +14,7 @@ const (
 	StateWaitFailoverBegin = "WAIT_FAILOVER_BEGIN"
 	StateWaitFailoverEnd   = "WAIT_FAILOVER_END"
 	StateOffline           = "OFFLINE"
+	StateStandby           = "STANDBY"
 )
 
 func getNodeState(i interface{}) *NodeState {
@@ -90,6 +91,16 @@ var (
 			log.Event(getNodeState(i).Addr(), "Leave OFFLINE state")
 		},
 	}
+
+	StandbyState = &fsm.State{
+		Name: StateStandby,
+		OnEnter: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Enter STANDBY state")
+		},
+		OnLeave: func(i interface{}) {
+			log.Event(getNodeState(i).Addr(), "Leave STANDBY state")
+		},
+	}
 )
 
 /// Constraints
@@ -155,7 +166,7 @@ var (
 				continue
 			}
 			nodeState := cs.FindNodeState(node.Id)
-			if node.Fail || nodeState.CurrentState() != StateRunning {
+			if node.Fail || (nodeState.CurrentState() != StateRunning && nodeState.CurrentState() != StateStandby) {
 				log.Warning(ns.Addr(), "Check constraint failed, more than one failure nodes")
 				return false
 			}
@@ -240,6 +251,19 @@ var (
 		}
 	}
 
+	StandbyGotoRunningHandler = func(i interface{}) {
+		ctx := i.(StateContext)
+		ns := ctx.NodeState
+
+		app := meta.GetAppConfig()
+		if app.AutoEnableMasterWrite {
+			resp, err := redis.EnableRead(ns.Addr(), ns.Id())
+			if err == nil {
+				log.Infof(ns.Addr(), "Enable read of new master: %s %s", resp, ns.Id())
+			}
+		}
+	}
+
 	MasterFailoverHandler = func(i interface{}) {
 		ctx := i.(StateContext)
 		cs := ctx.ClusterState
@@ -284,13 +308,14 @@ func init() {
 	RedisNodeStateModel.AddState(WaitFailoverBeginState)
 	RedisNodeStateModel.AddState(WaitFailoverEndState)
 	RedisNodeStateModel.AddState(OfflineState)
+	RedisNodeStateModel.AddState(StandbyState)
 
 	/// State: (WaitFailoverRunning)
 
 	// (a0) Running封禁了，进入Offline状态
 	RedisNodeStateModel.AddTransition(&fsm.Transition{
 		From:       StateRunning,
-		To:         StateOffline,
+		To:         StateStandby,
 		Input:      Input{F, F, ANY, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
@@ -423,27 +448,17 @@ func init() {
 
 	/// State: (Offline)
 
-	// (d0) 节点恢复读标记
+	// (d0) 节点存活状态恢复正常
 	RedisNodeStateModel.AddTransition(&fsm.Transition{
 		From:       StateOffline,
-		To:         StateRunning,
-		Input:      Input{T, ANY, ANY, ANY, ANY},
+		To:         StateStandby,
+		Input:      Input{ANY, ANY, FINE, ANY, ANY},
 		Priority:   0,
 		Constraint: nil,
 		Apply:      nil,
 	})
 
-	// (d1) 节点恢复写标记
-	RedisNodeStateModel.AddTransition(&fsm.Transition{
-		From:       StateOffline,
-		To:         StateRunning,
-		Input:      Input{ANY, T, ANY, ANY, ANY},
-		Priority:   0,
-		Constraint: nil,
-		Apply:      nil,
-	})
-
-	// (d2) 是主节，且挂了，需要进行Failover
+	// (d1) 是主节，且挂了，需要进行Failover
 	RedisNodeStateModel.AddTransition(&fsm.Transition{
 		From:     StateOffline,
 		To:       StateWaitFailoverBegin,
@@ -464,6 +479,38 @@ func init() {
 			return true
 		},
 		Apply: nil,
+	})
+
+	/// State: (Standby)
+
+	// Standby节点挂掉进入Offline
+	RedisNodeStateModel.AddTransition(&fsm.Transition{
+		From:       StateStandby,
+		To:         StateOffline,
+		Input:      Input{F, F, FAIL, S, ANY},
+		Priority:   0,
+		Constraint: nil,
+		Apply:      nil,
+	})
+
+	// Standby节点进入Running
+	RedisNodeStateModel.AddTransition(&fsm.Transition{
+		From:       StateStandby,
+		To:         StateRunning,
+		Input:      Input{T, ANY, FINE, ANY, ANY},
+		Priority:   0,
+		Constraint: nil,
+		Apply:      nil,
+	})
+
+	// Standby节点进入Running
+	RedisNodeStateModel.AddTransition(&fsm.Transition{
+		From:       StateStandby,
+		To:         StateRunning,
+		Input:      Input{ANY, T, FINE, ANY, ANY},
+		Priority:   0,
+		Constraint: nil,
+		Apply:      StandbyGotoRunningHandler,
 	})
 }
 
