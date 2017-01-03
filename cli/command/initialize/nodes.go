@@ -39,6 +39,10 @@ var IdcMap = map[string]string{
 	"nj03": "nj",
 	"gz":   "gz",
 	"hz":   "hz",
+	"sh":   "sh",
+	"sz":   "sz",
+	"nmg":  "nmg",
+	"yq":   "yq",
 }
 
 func splitLineFunc(r rune) bool {
