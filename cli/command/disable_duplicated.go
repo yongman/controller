@@ -40,8 +40,8 @@ func disableDuplicatedAction(c *cli.Context) {
 		return
 	}
 	limit := c.Int("l")
-	if limit < 1 {
-		fmt.Println("limit should be >=1 ")
+	if limit < 0 {
+		fmt.Println("limit should be >=0 ")
 		return
 	}
 	addr := context.GetLeaderAddr()

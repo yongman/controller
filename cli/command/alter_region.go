@@ -17,10 +17,12 @@ import (
 
 var AlterRegionCommand = cli.Command{
 	Name:   "alterRegion",
-	Usage:  "alterRegion -r=nj/bj/gz/hz/sh",
+	Usage:  "alterRegion -r=nj/bj/gz/hz/sh -m=failover/takeover -c",
 	Action: alterRegionAction,
 	Flags: []cli.Flag{
 		cli.StringFlag{"r,region", "", "new master region"},
+		cli.StringFlag{"m,method", "failover", "use failover or takeover"},
+		cli.BoolFlag{"c,consistency", "cluster serve a consistent service"},
 	},
 	Description: `
 	change master region
@@ -37,6 +39,12 @@ func getRegion(node *topo.Node) string {
 }
 
 func alterRegionAction(c *cli.Context) {
+	method := c.String("m")
+	if method != "failover" && method != "takeover" {
+		fmt.Println(ErrInvalidParameter)
+		return
+	}
+	consistency := c.Bool("c")
 	region := c.String("r")
 	if region == "" {
 		fmt.Println(ErrInvalidParameter)
@@ -120,7 +128,12 @@ func alterRegionAction(c *cli.Context) {
 			Role:  context.Config.Role,
 			Token: context.Config.Token,
 		}
-		url_setmaster := "http://" + addr + api.NodeSetAsMasterPath
+		url_setmaster := ""
+		if method == "failover" {
+			url_setmaster = "http://" + addr + api.NodeSetAsMasterPath
+		} else {
+			url_setmaster = "http://" + addr + api.FailoverTakeoverPath
+		}
 		req_setmaster := api.FailoverTakeoverParams{
 			NodeId: new_master.Id,
 		}
@@ -150,7 +163,9 @@ func alterRegionAction(c *cli.Context) {
 					ok, err := checkSlaveRepliStatusOk(n)
 					if ok {
 						//replica status ok,enable read flag,ignore result
-						configRead(n, true)
+						if consistency == false {
+							configRead(n, true)
+						}
 						continue
 					}
 					if !ok || err != nil {
