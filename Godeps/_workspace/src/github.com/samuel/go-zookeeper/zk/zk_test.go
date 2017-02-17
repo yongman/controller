@@ -1,15 +1,61 @@
 package zk
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
-
-	"camlistore.org/pkg/throttle"
 )
+
+func TestStateChanges(t *testing.T) {
+	ts, err := StartTestCluster(1, nil, logWriter{t: t, p: "[ZKERR] "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ts.Stop()
+
+	callbackChan := make(chan Event)
+	f := func(event Event) {
+		callbackChan <- event
+	}
+
+	zk, eventChan, err := ts.ConnectWithOptions(15*time.Second, WithEventCallback(f))
+	if err != nil {
+		t.Fatalf("Connect returned error: %+v", err)
+	}
+
+	verifyEventOrder := func(c <-chan Event, expectedStates []State, source string) {
+		for _, state := range expectedStates {
+			for {
+				event, ok := <-c
+				if !ok {
+					t.Fatalf("unexpected channel close for %s", source)
+				}
+
+				if event.Type != EventSession {
+					continue
+				}
+
+				if event.State != state {
+					t.Fatalf("mismatched state order from %s, expected %v, received %v", source, state, event.State)
+				}
+				break
+			}
+		}
+	}
+
+	states := []State{StateConnecting, StateConnected, StateHasSession}
+	verifyEventOrder(callbackChan, states, "callback")
+	verifyEventOrder(eventChan, states, "event channel")
+
+	zk.Close()
+	verifyEventOrder(callbackChan, []State{StateDisconnected}, "callback")
+	verifyEventOrder(eventChan, []State{StateDisconnected}, "event channel")
+}
 
 func TestCreate(t *testing.T) {
 	ts, err := StartTestCluster(1, nil, logWriter{t: t, p: "[ZKERR] "})
@@ -76,6 +122,105 @@ func TestMulti(t *testing.T) {
 		t.Fatal("Get returned nil stat")
 	} else if len(data) < 4 {
 		t.Fatal("Get returned wrong size data")
+	}
+}
+
+func TestIfAuthdataSurvivesReconnect(t *testing.T) {
+	// This test case ensures authentication data is being resubmited after
+	// reconnect.
+	testNode := "/auth-testnode"
+
+	ts, err := StartTestCluster(1, nil, logWriter{t: t, p: "[ZKERR] "})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	zk, _, err := ts.ConnectAll()
+	if err != nil {
+		t.Fatalf("Connect returned error: %+v", err)
+	}
+	defer zk.Close()
+
+	acl := DigestACL(PermAll, "userfoo", "passbar")
+
+	_, err = zk.Create(testNode, []byte("Some very secret content"), 0, acl)
+	if err != nil && err != ErrNodeExists {
+		t.Fatalf("Failed to create test node : %+v", err)
+	}
+
+	_, _, err = zk.Get(testNode)
+	if err == nil || err != ErrNoAuth {
+		var msg string
+
+		if err == nil {
+			msg = "Fetching data without auth should have resulted in an error"
+		} else {
+			msg = fmt.Sprintf("Expecting ErrNoAuth, got `%+v` instead", err)
+		}
+		t.Fatalf(msg)
+	}
+
+	zk.AddAuth("digest", []byte("userfoo:passbar"))
+
+	_, _, err = zk.Get(testNode)
+	if err != nil {
+		t.Fatalf("Fetching data with auth failed: %+v", err)
+	}
+
+	ts.StopAllServers()
+	ts.StartAllServers()
+
+	_, _, err = zk.Get(testNode)
+	if err != nil {
+		t.Fatalf("Fetching data after reconnect failed: %+v", err)
+	}
+}
+
+func TestMultiFailures(t *testing.T) {
+	// This test case ensures that we return the errors associated with each
+	// opeThis in the event a call to Multi() fails.
+	const firstPath = "/gozk-test-first"
+	const secondPath = "/gozk-test-second"
+
+	ts, err := StartTestCluster(1, nil, logWriter{t: t, p: "[ZKERR] "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ts.Stop()
+	zk, _, err := ts.ConnectAll()
+	if err != nil {
+		t.Fatalf("Connect returned error: %+v", err)
+	}
+	defer zk.Close()
+
+	// Ensure firstPath doesn't exist and secondPath does. This will cause the
+	// 2nd operation in the Multi() to fail.
+	if err := zk.Delete(firstPath, -1); err != nil && err != ErrNoNode {
+		t.Fatalf("Delete returned error: %+v", err)
+	}
+	if _, err := zk.Create(secondPath, nil /* data */, 0, WorldACL(PermAll)); err != nil {
+		t.Fatalf("Create returned error: %+v", err)
+	}
+
+	ops := []interface{}{
+		&CreateRequest{Path: firstPath, Data: []byte{1, 2}, Acl: WorldACL(PermAll)},
+		&CreateRequest{Path: secondPath, Data: []byte{3, 4}, Acl: WorldACL(PermAll)},
+	}
+	res, err := zk.Multi(ops...)
+	if err != ErrNodeExists {
+		t.Fatalf("Multi() didn't return correct error: %+v", err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("Expected 2 responses received %d", len(res))
+	}
+	if res[0].Error != nil {
+		t.Fatalf("First operation returned an unexpected error %+v", res[0].Error)
+	}
+	if res[1].Error != ErrNodeExists {
+		t.Fatalf("Second operation returned incorrect error %+v", res[1].Error)
+	}
+	if _, _, err := zk.Get(firstPath); err != ErrNoNode {
+		t.Fatalf("Node %s was incorrectly created: %+v", firstPath, err)
 	}
 }
 
@@ -180,6 +325,59 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("Get returned nil Stat")
 	} else if len(data) != 4 {
 		t.Fatalf("Get returned wrong data length")
+	}
+}
+
+func TestChildren(t *testing.T) {
+	ts, err := StartTestCluster(1, nil, logWriter{t: t, p: "[ZKERR] "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ts.Stop()
+	zk, _, err := ts.ConnectAll()
+	if err != nil {
+		t.Fatalf("Connect returned error: %+v", err)
+	}
+	defer zk.Close()
+
+	deleteNode := func(node string) {
+		if err := zk.Delete(node, -1); err != nil && err != ErrNoNode {
+			t.Fatalf("Delete returned error: %+v", err)
+		}
+	}
+
+	deleteNode("/gozk-test-big")
+
+	if path, err := zk.Create("/gozk-test-big", []byte{1, 2, 3, 4}, 0, WorldACL(PermAll)); err != nil {
+		t.Fatalf("Create returned error: %+v", err)
+	} else if path != "/gozk-test-big" {
+		t.Fatalf("Create returned different path '%s' != '/gozk-test-big'", path)
+	}
+
+	rb := make([]byte, 1000)
+	hb := make([]byte, 2000)
+	prefix := []byte("/gozk-test-big/")
+	for i := 0; i < 10000; i++ {
+		_, err := rand.Read(rb)
+		if err != nil {
+			t.Fatal("Cannot create random znode name")
+		}
+		hex.Encode(hb, rb)
+
+		expect := string(append(prefix, hb...))
+		if path, err := zk.Create(expect, []byte{1, 2, 3, 4}, 0, WorldACL(PermAll)); err != nil {
+			t.Fatalf("Create returned error: %+v", err)
+		} else if path != expect {
+			t.Fatalf("Create returned different path '%s' != '%s'", path, expect)
+		}
+		defer deleteNode(string(expect))
+	}
+
+	children, _, err := zk.Children("/gozk-test-big")
+	if err != nil {
+		t.Fatalf("Children returned error: %+v", err)
+	} else if len(children) != 10000 {
+		t.Fatal("Children returned wrong number of nodes")
 	}
 }
 
@@ -297,10 +495,12 @@ func TestSetWatchers(t *testing.T) {
 		t.Fatal("Children should return at least 1 child")
 	}
 
+	// Simulate network error by brutally closing the network connection.
 	zk.conn.Close()
 	if err := zk2.Delete(testPath, -1); err != nil && err != ErrNoNode {
 		t.Fatalf("Delete returned error: %+v", err)
 	}
+	// Allow some time for the `zk` session to reconnect and set watches.
 	time.Sleep(time.Millisecond * 100)
 
 	if path, err := zk2.Create("/gozk-test", []byte{1, 2, 3, 4}, 0, WorldACL(PermAll)); err != nil {
@@ -409,8 +609,8 @@ func TestSlowServer(t *testing.T) {
 
 	realAddr := fmt.Sprintf("127.0.0.1:%d", ts.Servers[0].Port)
 	proxyAddr, stopCh, err := startSlowProxy(t,
-		throttle.Rate{}, throttle.Rate{},
-		realAddr, func(ln *throttle.Listener) {
+		Rate{}, Rate{},
+		realAddr, func(ln *Listener) {
 			if ln.Up.Latency == 0 {
 				ln.Up.Latency = time.Millisecond * 2000
 				ln.Down.Latency = time.Millisecond * 2000
@@ -459,12 +659,12 @@ func TestSlowServer(t *testing.T) {
 	}
 }
 
-func startSlowProxy(t *testing.T, up, down throttle.Rate, upstream string, adj func(ln *throttle.Listener)) (string, chan bool, error) {
+func startSlowProxy(t *testing.T, up, down Rate, upstream string, adj func(ln *Listener)) (string, chan bool, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", nil, err
 	}
-	tln := &throttle.Listener{
+	tln := &Listener{
 		Listener: ln,
 		Up:       up,
 		Down:     down,
