@@ -55,29 +55,35 @@ type FailoverRecord struct {
 func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 	for {
 		event := <-watch
-		if event.Type == zookeeper.EventNodeDataChanged {
+		if event.Type == zookeeper.EventNodeDataChanged || event.Type == zookeeper.EventNotWatching {
 			a, w, err := m.FetchAppConfig()
-			if err == nil {
-				if a.MigrateKeysEachTime == 0 {
-					a.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
+			if err != nil {
+				for {
+					glog.Warningf("meta: fetch app config again, %v", err)
+					time.Sleep(1 * time.Second)
+					a, w, err = m.FetchAppConfig()
+					if err == nil {
+						break
+					}
 				}
-				if a.MigrateTimeout == 0 {
-					a.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT
-				}
-				if a.AutoFailoverInterval == 0 {
-					a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
-				}
-				if a.FetchClusterNodesInterval == 0 {
-					a.FetchClusterNodesInterval = DEFAULT_FETCH_CLUSTER_NODES_INTERVAL
-				}
-				if a.MigrateConcurrency == 0 {
-					a.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
-				}
-				m.appConfig.Store(a)
-				glog.Warning("meta: app config changed.", a)
-			} else {
-				glog.Warningf("meta: fetch app config failed, %v", err)
 			}
+			if a.MigrateKeysEachTime == 0 {
+				a.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
+			}
+			if a.MigrateTimeout == 0 {
+				a.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT
+			}
+			if a.AutoFailoverInterval == 0 {
+				a.AutoFailoverInterval = DEFAULT_AUTOFAILOVER_INTERVAL
+			}
+			if a.FetchClusterNodesInterval == 0 {
+				a.FetchClusterNodesInterval = DEFAULT_FETCH_CLUSTER_NODES_INTERVAL
+			}
+			if a.MigrateConcurrency == 0 {
+				a.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
+			}
+			m.appConfig.Store(a)
+			glog.Warning("meta: app config changed.", a)
 			watch = w
 		} else {
 			glog.Warningf("meta: unexpected event coming, %v", event)
