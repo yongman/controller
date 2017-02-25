@@ -26,6 +26,7 @@ var AppAddCommand = cli.Command{
 		cli.StringFlag{"r,masterregion", "bj", "MasterRegion"},
 		cli.StringFlag{"R,regions", "bj,nj", "Regions"},
 		cli.IntFlag{"k,migratekey", 100, "MigrateKeysEachTime"},
+		cli.IntFlag{"p,migratekeystep", 1, "MigrateKeysStep"},
 		cli.IntFlag{"t,migratetimeout", 2000, "MigrateTimeout"},
 		cli.BoolFlag{"l,slavefailoverlimit", "Slave failover limit check"},
 		cli.IntFlag{"u,fetchinterval", 1, "fetch cluster nodes interval"},
@@ -45,6 +46,7 @@ func appAddAction(c *cli.Context) {
 	r := c.String("r")
 	R := c.String("R")
 	k := c.Int("k")
+	p := c.Int("p")
 	t := c.Int("t")
 	l := c.Bool("l")
 	u := c.Int("u")
@@ -63,6 +65,7 @@ func appAddAction(c *cli.Context) {
 		MasterRegion:              r,
 		Regions:                   strings.Split(R, ","),
 		MigrateKeysEachTime:       k,
+		MigrateKeysStep:       	   p,
 		MigrateTimeout:            t,
 		SlaveFailoverLimit:        l,
 		FetchClusterNodesInterval: time.Duration(u),

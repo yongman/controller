@@ -15,6 +15,7 @@ const (
 	DEFAULT_AUTOFAILOVER_INTERVAL        time.Duration = 5 * time.Minute // 5min
 	DEFAULT_FETCH_CLUSTER_NODES_INTERVAL time.Duration = 1 * time.Second
 	DEFAULT_MIGRATE_KEYS_EACH_TIME                     = 100
+	DEFAULT_MIGRATE_KEYS_STEP                          = 1
 	DEFAULT_MIGRATE_TIMEOUT                            = 2000
 	DEFAULT_MIGRATE_CONCURRENCY                        = 3
 )
@@ -28,6 +29,7 @@ type AppConfig struct {
 	MasterRegion              string
 	Regions                   []string
 	MigrateKeysEachTime       int
+	MigrateKeysStep       	  int
 	MigrateTimeout            int
 	SlaveFailoverLimit        bool
 	FetchClusterNodesInterval time.Duration
@@ -60,6 +62,9 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 			if err == nil {
 				if a.MigrateKeysEachTime == 0 {
 					a.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
+				}
+				if a.MigrateKeysStep == 0 {
+					a.MigrateKeysStep = DEFAULT_MIGRATE_KEYS_STEP
 				}
 				if a.MigrateTimeout == 0 {
 					a.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT
@@ -109,6 +114,9 @@ func (m *Meta) FetchAppConfig() (*AppConfig, <-chan zookeeper.Event, error) {
 	}
 	if c.MigrateKeysEachTime == 0 {
 		c.MigrateKeysEachTime = DEFAULT_MIGRATE_KEYS_EACH_TIME
+	}
+	if c.MigrateKeysStep == 0 {
+		c.MigrateKeysStep = DEFAULT_MIGRATE_KEYS_STEP
 	}
 	if c.MigrateTimeout == 0 {
 		c.MigrateTimeout = DEFAULT_MIGRATE_TIMEOUT

@@ -590,6 +590,60 @@ func Migrate(addr, toIp string, toPort int, key string, timeout int) (string, er
 	return "", err
 }
 
+func MigrateByMultiKeys(addr, toIp string, toPort int, key []string, timeout int) (string, error) {
+	inner := func(addr, toIp string, toPort int, key []string, timeout int) (string, error) {
+		if len(key) == 0 {
+			return "", nil
+		}
+ 		conn, err := dial(addr)
+		if err != nil {
+			return "", ErrConnFailed
+		}
+		defer conn.Close()
+
+		_joinArgs := func(toIp string, toPort int, keys []string, timeout int, replace bool) ([]interface{}){
+			var args []interface{}
+			args = append(args, toIp)
+			args = append(args, toPort)
+			args = append(args, "")
+			args = append(args, 0)
+			args = append(args, timeout)
+			if replace {
+				args = append(args, "replace")
+			}
+			args = append(args, "keys")
+			for _, key := range keys {
+				args = append(args, key)
+			}
+
+			return args
+		}
+		migrateArgs := _joinArgs(toIp, toPort, key, timeout, false)
+
+		resp, err := redis.String(conn.Do("migrate", migrateArgs...))
+		if err != nil && strings.Contains(err.Error(), "BUSYKEY") {
+			log.Warningf("MigrateByMultiKeys", "Found BUSYKEYS '%s', will overwrite it.", strings.Join(key, " "))
+			migrateArgs := _joinArgs(toIp, toPort, key, timeout, true)
+			resp, err = redis.String(conn.Do("migrate", migrateArgs...))
+		}
+		if err != nil {
+			return "", err
+		}
+		return resp, nil
+	}
+	retry := 1
+	var err error
+	var resp string
+	for retry > 0 {
+		resp, err = inner(addr, toIp, toPort, key, timeout)
+		if err == nil {
+			return resp, nil
+		}
+		retry--
+	}
+	return "", err
+}
+
 // used by cli
 func ClusterNodesWithoutExtra(addr string) (string, error) {
 	inner := func(addr string) (string, error) {

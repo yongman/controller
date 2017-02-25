@@ -25,6 +25,7 @@ var AppModCommand = cli.Command{
 		cli.StringFlag{"r,masterregion", "", "MasterRegion"},
 		cli.StringFlag{"R,regions", "", "Regions"},
 		cli.IntFlag{"k,migratekey", -1, "MigrateKeysEachTime"},
+		cli.IntFlag{"p,migratekeystep", -1, "MigrateKeysStep"},
 		cli.IntFlag{"t,migratetimeout", -1, "MigrateTimeout"},
 		cli.StringFlag{"l,slavefailoverlimit", "", "Slave failover limit check"},
 		cli.IntFlag{"u,fetchinterval", -1, "Fetch cluster nodes interval"},
@@ -47,6 +48,7 @@ func appModAction(c *cli.Context) {
 	r := c.String("r")
 	R := c.String("R")
 	k := c.Int("k")
+	p := c.Int("p")
 	t := c.Int("t")
 	l := c.String("l")
 	u := c.Int("u")
@@ -104,6 +106,9 @@ func appModAction(c *cli.Context) {
 	}
 	if k != -1 {
 		appConfig.MigrateKeysEachTime = k
+	}
+	if p != -1 {
+		appConfig.MigrateKeysStep = p
 	}
 	if t != -1 {
 		appConfig.MigrateTimeout = t

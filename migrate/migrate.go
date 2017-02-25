@@ -165,19 +165,43 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 		}
 	}
 
-	nkeys := 0
 	app := meta.GetAppConfig()
+	nkeys := 0
+	migratekeystep := app.MigrateKeysStep
+	suportmultikeys := true
 	for {
 		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, keysPer)
 		if err != nil {
 			return nkeys, err, ""
 		}
-		for _, key := range keys {
-			_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, app.MigrateTimeout)
-			if err != nil {
-				return nkeys, err, key
+
+		if suportmultikeys {
+			for len(keys) != 0 {
+				step := migratekeystep
+				if len(keys) < migratekeystep {
+					step = len(keys)
+				} 
+				log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys[:step], " "))
+				resp, err := redis.MigrateByMultiKeys(sourceNode.Addr(), targetNode.Ip, targetNode.Port, keys[:step], app.MigrateTimeout)
+				if err != nil {
+					log.Warningf("MigrateByMultiKeys",err.Error())
+					suportmultikeys = false
+				} else {
+					nkeys = nkeys + step
+					keys = append(keys[:0], keys[step:]...)
+					// log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys, " "))
+				}
+				log.Warningf("MigrateByMultiKeys",resp)
 			}
-			nkeys++
+		}
+		if !suportmultikeys {
+			for _, key := range keys {
+				_, err := redis.Migrate(sourceNode.Addr(), targetNode.Ip, targetNode.Port, key, app.MigrateTimeout)
+				if err != nil {
+					return nkeys, err, key
+				}
+				nkeys++
+			}
 		}
 		if len(keys) == 0 {
 			// 迁移完成，需要等SourceSlaves同步(DEL)完成，即SourceSlaves节点中该slot内已无key
@@ -228,7 +252,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 				}
 			}
 			break
-		}
+		} 
 	}
 
 	return nkeys, nil, ""
