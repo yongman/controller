@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	NUMRETRY = 3
 	StateNew int32 = iota
 	StateRunning
 	StatePausing
@@ -22,6 +23,7 @@ const (
 	StateCancelled
 	StateDone
 	StateTargetNodeFailure
+
 )
 
 var stateNames = map[int32]string{
@@ -169,6 +171,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 	nkeys := 0
 	migratekeystep := app.MigrateKeysStep
 	suportmultikeys := true
+	retry := NUMRETRY
 	for {
 		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, keysPer)
 		if err != nil {
@@ -184,12 +187,17 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 				log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys[:step], " "))
 				resp, err := redis.MigrateByMultiKeys(sourceNode.Addr(), targetNode.Ip, targetNode.Port, keys[:step], app.MigrateTimeout)
 				if err != nil {
-					log.Warningf("MigrateByMultiKeys",err.Error())
-					suportmultikeys = false
+					if !strings.Contains(err.Error(), "syntax error") && retry > 0 {
+						log.Warningf("MigrateByMultiKeys", err.Error())
+						retry--
+						continue
+					} else {
+						suportmultikeys = false
+						break
+					}			
 				} else {
 					nkeys = nkeys + step
-					keys = append(keys[:0], keys[step:]...)
-					// log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys, " "))
+					keys = keys[step:]
 				}
 				log.Warningf("MigrateByMultiKeys",resp)
 			}

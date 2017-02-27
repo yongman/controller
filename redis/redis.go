@@ -631,7 +631,7 @@ func MigrateByMultiKeys(addr, toIp string, toPort int, key []string, timeout int
 		}
 		return resp, nil
 	}
-	retry := 1
+	retry := NUM_RETRY
 	var err error
 	var resp string
 	for retry > 0 {
