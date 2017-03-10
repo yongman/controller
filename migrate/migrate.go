@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	NUMRETRY = 3
+	NUMRETRY       = 3
 	StateNew int32 = iota
 	StateRunning
 	StatePausing
@@ -23,7 +23,6 @@ const (
 	StateCancelled
 	StateDone
 	StateTargetNodeFailure
-
 )
 
 var stateNames = map[int32]string{
@@ -169,9 +168,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 
 	app := meta.GetAppConfig()
 	nkeys := 0
-	migratekeystep := app.MigrateKeysStep
-	suportmultikeys := true
 	retry := NUMRETRY
+	migratekeystep := app.MigrateKeysStep
+	suportmultikeys := false
+	if migratekeystep > 0 {
+		suportmultikeys = true
+	}
 	for {
 		keys, err := redis.GetKeysInSlot(sourceNode.Addr(), slot, keysPer)
 		if err != nil {
@@ -183,7 +185,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 				step := migratekeystep
 				if len(keys) < migratekeystep {
 					step = len(keys)
-				} 
+				}
 				log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys[:step], " "))
 				resp, err := redis.MigrateByMultiKeys(sourceNode.Addr(), targetNode.Ip, targetNode.Port, keys[:step], app.MigrateTimeout)
 				if err != nil {
@@ -194,12 +196,12 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 					} else {
 						suportmultikeys = false
 						break
-					}			
+					}
 				} else {
 					nkeys = nkeys + step
 					keys = keys[step:]
 				}
-				log.Warningf("MigrateByMultiKeys",resp)
+				log.Warningf("MigrateByMultiKeys", resp)
 			}
 		}
 		if !suportmultikeys {
@@ -260,7 +262,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 				}
 			}
 			break
-		} 
+		}
 	}
 
 	return nkeys, nil, ""
