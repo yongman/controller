@@ -23,6 +23,7 @@ var AlterRegionCommand = cli.Command{
 		cli.StringFlag{"r,region", "", "new master region"},
 		cli.StringFlag{"m,method", "failover", "use failover or takeover"},
 		cli.BoolFlag{"c,consistency", "cluster serve a consistent service"},
+		cli.BoolFlag{"check", "with check replicasets status"},
 	},
 	Description: `
 	change master region
@@ -50,6 +51,7 @@ func alterRegionAction(c *cli.Context) {
 		fmt.Println(ErrInvalidParameter)
 		return
 	}
+	check := c.Bool("check")
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -70,9 +72,9 @@ func alterRegionAction(c *cli.Context) {
 
 	var old_master *topo.Node
 	var new_master *topo.Node
-	var new_slaves []*topo.Node
 
 	for _, rs := range rss.ReplicaSets {
+		var new_slaves []*topo.Node
 		old_master = rs.Master
 		if old_master.IsArbiter() {
 			continue
@@ -142,7 +144,7 @@ func alterRegionAction(c *cli.Context) {
 
 		fmt.Printf("Old master: R[%s] IP[%s] Port[%d]\n", old_master_region, old_master.Ip, old_master.Port)
 
-		resp, err = utils.HttpPostExtra(url_setmaster, req_setmaster, 5*time.Second, extraHeader)
+		resp, err = utils.HttpPostExtra(url_setmaster, req_setmaster, 10*time.Second, extraHeader)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -153,34 +155,36 @@ func alterRegionAction(c *cli.Context) {
 		}
 
 		//check the status of all slaves
-		cnt := 1
-		for {
-			fmt.Printf("Check slaves status %d times\n", cnt)
-			cnt++
-			inner := func(nodes []*topo.Node) bool {
-				rok := true
-				for _, n := range nodes {
-					ok, err := checkSlaveRepliStatusOk(n)
-					if ok {
-						//replica status ok,enable read flag,ignore result
-						if consistency == false {
-							configRead(n, true)
+		if check {
+			cnt := 1
+			for {
+				fmt.Printf("Check slaves status %d times\n", cnt)
+				cnt++
+				inner := func(nodes []*topo.Node) bool {
+					rok := true
+					for _, n := range nodes {
+						ok, err := checkSlaveRepliStatusOk(n)
+						if ok {
+							//replica status ok,enable read flag,ignore result
+							if consistency == false {
+								configRead(n, true)
+							}
+							continue
 						}
-						continue
+						if !ok || err != nil {
+							rok = false
+						}
 					}
-					if !ok || err != nil {
-						rok = false
-					}
+					return rok
 				}
-				return rok
-			}
 
-			ok := inner(new_slaves)
-			if !ok {
-				//not ok, wait for next turn check
-				time.Sleep(10 * time.Second)
-			} else {
-				break
+				ok := inner(new_slaves)
+				if !ok {
+					//not ok, wait for next turn check
+					time.Sleep(1 * time.Second)
+				} else {
+					break
+				}
 			}
 		}
 	}

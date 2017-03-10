@@ -2,8 +2,10 @@ package command
 
 import (
 	"fmt"
+	"os/exec"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -144,6 +146,20 @@ func shutdownServer(node *topo.Node) error {
 	addr := node.Addr()
 	_, err := redis.RedisCli(addr, "shutdown", "nosave")
 	return err
+}
+
+func restartServer(node *topo.Node) error {
+	unit_id := strings.Split(node.Tag, ".")[1]
+	cmd := exec.Command("osp", "unit", "restart", unit_id)
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func saveIdx(addr string, pid string, role string, replica_idx int) error {
@@ -300,9 +316,13 @@ func upgradeMaster(c *cli.Context) {
 			return
 		}
 		//shutdown server
-		err = shutdownServer(old_master)
+		//err = shutdownServer(old_master)
+		//restart server by osp
+		err = restartServer(old_master)
 		if err != nil {
-			fmt.Printf("server %s restart\n", old_master.Addr())
+			fmt.Printf("server %s restart failed\n", old_master.Addr())
+		} else {
+			fmt.Printf("server %s restart ok\n", old_master.Addr())
 		}
 		//check the status of old master
 		cnt := 1
@@ -402,9 +422,13 @@ func upgradeSlaves(c *cli.Context) {
 			fmt.Printf("Disable aof feature %s\n", s.Addr())
 
 			//send shutdown command
-			err = shutdownServer(s)
+			//err = shutdownServer(s)
+			//send resatart command
+			err = restartServer(s)
 			if err != nil {
-				fmt.Printf("server %s restart\n", s.Addr())
+				fmt.Printf("server %s restart failed\n", s.Addr())
+			} else {
+				fmt.Printf("server %s restart ok\n", s.Addr())
 			}
 			//sleep for 5 seconds
 			time.Sleep(5 * time.Second)
