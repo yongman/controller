@@ -29,7 +29,12 @@ func (self *FailoverTakeoverCommand) Execute(c *cc.Controller) (cc.Result, error
 	if err != nil {
 		return nil, err
 	}
-	for _, ns := range cs.AllNodeStates() {
+	ns := cs.GetFirstNodeState()
+	_, err = redis.EnableWrite(ns.Addr(), self.NodeId)
+	if err == nil {
+		return nil, nil
+	}
+	for _, ns = range cs.AllNodeStates() {
 		_, err = redis.EnableWrite(ns.Addr(), self.NodeId)
 		if err == nil {
 			return nil, nil

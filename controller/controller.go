@@ -55,8 +55,11 @@ func (c *Controller) ProcessCommand(command Command, timeout time.Duration) (res
 	if commandName != "" {
 		log.Infof("OP", "Command: %s, Event:Start", commandName)
 	}
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	// command must be excuted serial
+	if command.Mutex() == MUTEX_COMMAND {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+	}
 
 	resultCh := make(chan Result)
 	errorCh := make(chan error)

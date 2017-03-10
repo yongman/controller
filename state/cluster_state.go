@@ -33,6 +33,22 @@ func (cs *ClusterState) AllNodeStates() map[string]*NodeState {
 	return cs.nodeStates
 }
 
+func (cs *ClusterState) GetFirstNodeState() *NodeState {
+	// only choose health node
+	var keys []string
+	for _, ns := range cs.nodeStates {
+		if ns.Node().Fail {
+			continue
+		}
+		keys = append(keys, ns.Node().Id)
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	sort.Strings(keys)
+	return cs.nodeStates[keys[0]]
+}
+
 func (cs *ClusterState) UpdateRegionNodes(region string, nodes []*topo.Node) {
 	cs.version++
 	now := time.Now()

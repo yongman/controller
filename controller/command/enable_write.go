@@ -19,6 +19,11 @@ func (self *EnableWriteCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		return nil, ErrNodeIsDead
 	}
 	var err error
+	ns := cs.GetFirstNodeState()
+	_, err = redis.EnableWrite(ns.Addr(), target.Id)
+	if err == nil {
+		return nil, nil
+	}
 	for _, ns := range cs.AllNodeStates() {
 		_, err = redis.EnableWrite(ns.Addr(), target.Id)
 		if err == nil {

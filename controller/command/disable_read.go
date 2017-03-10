@@ -19,7 +19,12 @@ func (self *DisableReadCommand) Execute(c *cc.Controller) (cc.Result, error) {
 		return nil, ErrNodeIsDead
 	}
 	var err error
-	for _, ns := range cs.AllNodeStates() {
+	ns := cs.GetFirstNodeState()
+	_, err = redis.DisableRead(ns.Addr(), target.Id)
+	if err == nil {
+		return nil, nil
+	}
+	for _, ns = range cs.AllNodeStates() {
 		_, err = redis.DisableRead(ns.Addr(), target.Id)
 		if err == nil {
 			return nil, nil
