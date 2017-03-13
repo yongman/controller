@@ -96,6 +96,8 @@ func main() {
 			c.UserGetCommand,
 			c.ListFailoverRecordCommand,
 			c.GetFailoverRecordCommand,
+			c.TopoCommand,
+			c.TakeoverClusterCommand,
 		}
 		arg := append(os.Args)
 		for _, cmd := range app.Commands {
