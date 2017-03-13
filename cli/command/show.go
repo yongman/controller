@@ -82,13 +82,13 @@ func showFailoverHistory() {
 
 func printShowUsage() {
 	Put("List of show subcommands:\n")
-	Put("show nodes         -- Show the nodes info group by replicaset in table format,exclude Arbiter")
-	Put("show nodes-simple  -- Show the nodes info group by replicaset in raw format,exclude Arbiter")
-	Put("show nodes-json    -- Show the nodes info group by replicaset in json format")
-	Put("show nodes-all	    -- Show the nodes info group by replicaset in json format")
-	Put("show slots         -- Show the ranges of master nodes")
-	Put("show tasks         -- Show migrating tasks")
-	Put("show failover      -- Show failover history records")
+	Put("show nodes <ip|tag>         -- Show the nodes info group by replicaset in table format,exclude Arbiter, with filter=ip or tag")
+	Put("show nodes-simple <ip|tag>  -- Show the nodes info group by replicaset in raw format,exclude Arbiter, with filter=ip or tag")
+	Put("show nodes-json <ip|tag>    -- Show the nodes info group by replicaset in json format, with filter=ip or tag")
+	Put("show nodes-all <ip|tag>     -- Show the nodes info group by replicaset in json format, with filter=ip or tag")
+	Put("show slots                  -- Show the ranges of master nodes")
+	Put("show tasks                  -- Show migrating tasks")
+	Put("show failover               -- Show failover history records")
 	Put()
 }
 
@@ -98,18 +98,23 @@ func showAction(c *cli.Context) {
 		printShowUsage()
 		return
 	}
+
 	cmd := args[0]
+	var filter string
+	if len(args) == 2 {
+		filter = args[1]
+	}
 	switch cmd {
 	case "tasks", "task":
 		showMigrationTasks()
 	case "nodes":
-		showNodes("table", false)
+		showNodes("table", false, filter)
 	case "nodes-simple":
-		showNodes("", false)
+		showNodes("", false, filter)
 	case "nodes-json":
-		showNodes("json", false)
+		showNodes("json", false, filter)
 	case "nodes-all":
-		showNodes("table", true)
+		showNodes("table", true, filter)
 	case "slots":
 		showSlots()
 	case "failover":

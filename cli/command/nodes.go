@@ -99,7 +99,7 @@ func nodesToInterfaceSlice(nodes []*topo.Node, stateMap map[string]string) []int
 	return interfaceSlice
 }
 
-func showNodes(format string, arbiter bool) {
+func showNodes(format string, arbiter bool, filter string) {
 	addr := context.GetLeaderAddr()
 	url := "http://" + addr + api.FetchReplicaSetsPath
 
@@ -119,18 +119,26 @@ func showNodes(format string, arbiter bool) {
 	sort.Sort(topo.ByNodeState(rss.ReplicaSets))
 
 	var allNodes []*topo.Node
-	for i, rs := range rss.ReplicaSets {
+	for _, rs := range rss.ReplicaSets {
+		var showNodes []*topo.Node
 		if !arbiter && rs.Master != nil && strings.Contains(rs.Master.Tag, "Arbiter") {
 			continue
 		}
-		allNodes = append(allNodes, rs.Master)
+		if filter == "" || (filter != "" && (strings.Contains(rs.Master.Ip, filter) || strings.Contains(rs.Master.Tag, filter))) {
+			showNodes = append(showNodes, rs.Master)
+		} 
 		for _, node := range rs.Slaves {
-			allNodes = append(allNodes, node)
+			if filter == "" || (filter != "" && (strings.Contains(node.Ip, filter) || strings.Contains(node.Tag, filter))) {
+				showNodes = append(showNodes, node)
+			} 
 		}
-		if i < len(rss.ReplicaSets)-1 {
+		if showNodes != nil {
+			allNodes = append(allNodes, showNodes...)
 			allNodes = append(allNodes, nil)
 		}
-	}
+	}	
+	allNodes = allNodes[0: len(allNodes)-1]
+
 	utils.PrintJsonArray(format,
 		[]string{"State", "Mode", "Fail", "Role", "Id", "Tag", "Addr", "QPS",
 			"UsedMemory", "Link", "Repl", "Keys", "NetIn", "NetOut"},
