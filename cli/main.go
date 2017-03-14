@@ -120,6 +120,8 @@ func main() {
         cli userdel -u <username>, -h  for more details
         cli listfailover, -h for more details
         cli getfailover, -h for more details
+        cli topo, -h for more details
+        cli takeoverCluster, -h for more details
         cli <AppName> [<Command>] [options], -h for more details
         `
 		fmt.Println(help)

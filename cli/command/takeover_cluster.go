@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -18,6 +19,7 @@ var TakeoverClusterCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{"s,seed", "", "seed to fetch cluster topo "},
 		cli.StringFlag{"r,region", "", "new master region"},
+		cli.BoolFlag{"without-check", "without check slaves status"},
 	},
 	Description: `
 	change master region of the cluster
@@ -33,6 +35,7 @@ func takeoverClusterAction(c *cli.Context) {
 	if cmd != "yes" {
 		os.Exit(0)
 	}
+	withoutCheck := c.Bool("without-check")
 	seed := c.String("seed")
 	if seed == "" {
 		fmt.Println(ErrInvalidParameter)
@@ -78,7 +81,9 @@ func takeoverClusterAction(c *cli.Context) {
 				new_master = repli
 				skip = true
 			} else {
-				new_slaves = append(new_slaves, repli)
+				if repli.Region != old_master_region {
+					new_slaves = append(new_slaves, repli)
+				}
 			}
 		}
 		if new_master == nil {
@@ -88,7 +93,8 @@ func takeoverClusterAction(c *cli.Context) {
 
 		fmt.Printf("New master: R[%s] IP[%s] Port[%d]\n", new_master.Region, new_master.Ip, new_master.Port)
 		fmt.Printf("Old master: R[%s] IP[%s] Port[%d]\n", old_master_region, old_master.Ip, old_master.Port)
-		resp, err := redis.ClusterTakeover(new_master.Addr(), nil)
+		resp, err := TryFailover(new_master.Addr())
+		fmt.Println("Trying failover...")
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -98,7 +104,7 @@ func takeoverClusterAction(c *cli.Context) {
 		//check the status of all old slaves
 		//old master may be fail
 		cnt := 1
-		for {
+		for !withoutCheck {
 			fmt.Printf("Check slaves status %d times\n", cnt)
 			cnt++
 			inner := func(nodes []*topo.Node) bool {
@@ -125,4 +131,14 @@ func takeoverClusterAction(c *cli.Context) {
 		}
 	}
 
+}
+
+func TryFailover(addr string) (string, error) {
+	resp, err := redis.ClusterFailover(addr, nil)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "ERR CLUSTERDOWN") {
+			resp, err = redis.ClusterTakeover(addr, nil)
+		}
+	}
+	return resp, err
 }
