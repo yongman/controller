@@ -74,7 +74,34 @@ func (self *Inspector) IsClusterDamaged(cluster *topo.Cluster, seeds []*topo.Nod
 	return true
 }
 
+func FixClusterCircle() {
+	// 定时fixcluster，针对 len(failnodes) == len (freednodes) 情况自动修复
+	app := meta.GetAppConfig()
+	trickerTime := app.FixClusterCircle
+	aotuFixCluster := app.AotuFixCluster
+
+	if trickerTime == 0 {
+		trickerTime = meta.DEFAULT_FIXCLUSTER_CIRCLE
+	}
+	tickChan := time.NewTicker(time.Second * time.Duration(trickerTime)).C
+	for {
+		select {
+			case <-tickChan:
+				glog.Infof("ClusterLeader:%s, RegionLeader:%s", meta.ClusterLeaderZNodeName(), meta.RegionLeaderZNodeName())
+				if meta.IsClusterLeader() && aotuFixCluster{				
+					addr := meta.LeaderHttpAddress()
+					url := "http://" + addr + api.FixClusterPath
+					_, err := utils.HttpPost(url, nil, 0)
+					if err != nil {
+						glog.Info(err.Error())
+					}
+				}
+		}
+	}
+}
+
 func (self *Inspector) Run() {
+	go FixClusterCircle()
 	appconfig := meta.GetAppConfig()
 	// FetchClusterNodesInterval not support heat loading
 	tickChan := time.NewTicker(appconfig.FetchClusterNodesInterval).C

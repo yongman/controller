@@ -31,6 +31,8 @@ var AppAddCommand = cli.Command{
 		cli.BoolFlag{"l,slavefailoverlimit", "Slave failover limit check"},
 		cli.IntFlag{"u,fetchinterval", 1, "fetch cluster nodes interval"},
 		cli.IntFlag{"c,migrateconcurrency", 10, "number of migrate tasks run concurrently"},
+		cli.IntFlag{"e,fixclustercircle", 10, "period of fix cluster , s(second)"},
+		cli.BoolFlag{"a,AotuFixCluster", "AotuFixCluster"},
 	},
 	Description: `
     add app configuration to zookeeper
@@ -51,6 +53,8 @@ func appAddAction(c *cli.Context) {
 	l := c.Bool("l")
 	u := c.Int("u")
 	mc := c.Int("c")
+	e := c.Int("e")
+	a := c.Bool("a")
 
 	if appname == "" {
 		fmt.Println("-n,appname must be assigned")
@@ -70,6 +74,8 @@ func appAddAction(c *cli.Context) {
 		SlaveFailoverLimit:        l,
 		FetchClusterNodesInterval: time.Duration(u),
 		MigrateConcurrency:        mc,
+		FixClusterCircle:          e,
+		AotuFixCluster:        	   a,
 	}
 	out, err := json.Marshal(appConfig)
 	if err != nil {

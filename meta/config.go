@@ -18,6 +18,7 @@ const (
 	DEFAULT_MIGRATE_KEYS_STEP                          = 1
 	DEFAULT_MIGRATE_TIMEOUT                            = 2000
 	DEFAULT_MIGRATE_CONCURRENCY                        = 3
+	DEFAULT_FIXCLUSTER_CIRCLE                          = 10
 )
 
 type AppConfig struct {
@@ -34,6 +35,8 @@ type AppConfig struct {
 	SlaveFailoverLimit        bool
 	FetchClusterNodesInterval time.Duration
 	MigrateConcurrency        int
+	FixClusterCircle		  int
+	AotuFixCluster			  bool
 }
 
 type ControllerConfig struct {
@@ -87,6 +90,9 @@ func (m *Meta) handleAppConfigChanged(watch <-chan zookeeper.Event) {
 			if a.MigrateConcurrency == 0 {
 				a.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
 			}
+			if a.FixClusterCircle == 0 {
+				a.FixClusterCircle = DEFAULT_FIXCLUSTER_CIRCLE
+			}
 			m.appConfig.Store(a)
 			glog.Warning("meta: app config changed.", a)
 			watch = w
@@ -135,6 +141,9 @@ func (m *Meta) FetchAppConfig() (*AppConfig, <-chan zookeeper.Event, error) {
 	}
 	if c.MigrateConcurrency == 0 {
 		c.MigrateConcurrency = DEFAULT_MIGRATE_CONCURRENCY
+	}
+	if c.FixClusterCircle == 0 {
+		c.FixClusterCircle = DEFAULT_FIXCLUSTER_CIRCLE
 	}
 	return &c, watch, nil
 }

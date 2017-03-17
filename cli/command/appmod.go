@@ -30,6 +30,8 @@ var AppModCommand = cli.Command{
 		cli.StringFlag{"l,slavefailoverlimit", "", "Slave failover limit check"},
 		cli.IntFlag{"u,fetchinterval", -1, "Fetch cluster nodes interval"},
 		cli.IntFlag{"c,migrateconcurrency", -1, "number of migrate task running concurrently"},
+		cli.IntFlag{"e,fixclustercircle", -1, "period of fix cluster , s(second)"},
+		cli.StringFlag{"a,AotuFixCluster", "", "AotuFixCluster <true> or <false>"},
 	},
 	Description: `
     update app configuraton in zookeeper
@@ -53,6 +55,8 @@ func appModAction(c *cli.Context) {
 	l := c.String("l")
 	u := c.Int("u")
 	mc := c.Int("c")
+	e := c.Int("e")
+	a := c.String("a")
 
 	appConfig := meta.AppConfig{}
 	config, version, err := context.GetApp(appname)
@@ -104,6 +108,13 @@ func appModAction(c *cli.Context) {
 	if R != "" {
 		appConfig.Regions = strings.Split(R, ",")
 	}
+	if a != "" {
+		if a == "true" {
+			appConfig.AotuFixCluster = true
+		} else if a == "false" {
+			appConfig.AotuFixCluster = false
+		}
+	}
 	if k != -1 {
 		appConfig.MigrateKeysEachTime = k
 	}
@@ -118,6 +129,9 @@ func appModAction(c *cli.Context) {
 	}
 	if mc != -1 {
 		appConfig.MigrateConcurrency = mc
+	}
+	if e != -1 {
+		appConfig.FixClusterCircle = e
 	}
 
 	out, err := json.Marshal(appConfig)

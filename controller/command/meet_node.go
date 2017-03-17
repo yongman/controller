@@ -26,8 +26,8 @@ func (self *MeetNodeCommand) Execute(c *cc.Controller) (cc.Result, error) {
 	for _, ns := range cs.AllNodeStates() {
 		_, err = redis.ClusterMeet(ns.Addr(), target.Ip, target.Port)
 		if err == nil {
-			log.Eventf(target.Addr(), "Meet.")
-			return nil, nil
+			log.Eventf(target.Addr(), "(%s) meet faile (%s)", ns.Addr(), target.Addr())
+			continue
 		}
 	}
 	return nil, err
