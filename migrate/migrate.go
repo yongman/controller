@@ -181,13 +181,13 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 		}
 
 		if suportmultikeys {
-			for len(keys) != 0 {
+			temp_keys := keys[0:] 
+			for len(temp_keys) != 0 {
 				step := migratekeystep
-				if len(keys) < migratekeystep {
-					step = len(keys)
+				if len(temp_keys) < migratekeystep {
+					step = len(temp_keys)
 				}
-				log.Warningf("MigrateByMultiKeys", "%s", strings.Join(keys[:step], " "))
-				resp, err := redis.MigrateByMultiKeys(sourceNode.Addr(), targetNode.Ip, targetNode.Port, keys[:step], app.MigrateTimeout)
+				_, err := redis.MigrateByMultiKeys(sourceNode.Addr(), targetNode.Ip, targetNode.Port, temp_keys[:step], app.MigrateTimeout)
 				if err != nil {
 					if !strings.Contains(err.Error(), "syntax error") && retry > 0 {
 						log.Warningf("MigrateByMultiKeys", err.Error())
@@ -199,9 +199,8 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 					}
 				} else {
 					nkeys = nkeys + step
-					keys = keys[step:]
+					temp_keys = temp_keys[step:]
 				}
-				log.Warningf("MigrateByMultiKeys", resp)
 			}
 		}
 		if !suportmultikeys {
@@ -246,20 +245,17 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 					return nkeys, err, ""
 				}
 			}
+
 			// 该操作增加Epoch并广播出去
 			err = redis.SetSlot(trs.Master.Addr(), slot, redis.SLOT_NODE, targetNode.Id)
 			if err != nil {
 				return nkeys, err, ""
 			}
+
 			// 更新节点上slot的归属
-			for _, rs := range t.cluster.ReplicaSets() {
-				if rs.Master.IsStandbyMaster() {
-					continue
-				}
-				err = SetSlotToNode(rs, slot, targetNode.Id)
-				if err != nil {
-					return nkeys, err, ""
-				}
+			err = SetSlotToNode(srs, slot, targetNode.Id)
+			if err != nil {
+				return nkeys, err, ""
 			}
 			break
 		}
@@ -330,6 +326,7 @@ func (t *MigrateTask) Run() {
 			// 正常运行
 			app := meta.GetAppConfig()
 			nkeys, err, key := t.migrateSlot(t.currSlot, app.MigrateKeysEachTime)
+
 			t.totalKeysInSlot += nkeys
 			// Check remains again
 			seed := t.SourceNode()
