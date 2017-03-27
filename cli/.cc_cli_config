@@ -1,0 +1,4 @@
+zkhosts: ZKHOSTS
+display: simple
+user: root
+token: root
