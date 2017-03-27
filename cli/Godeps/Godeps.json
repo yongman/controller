@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/ksarch-saas/cc/cli",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.8",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/GeertJohan/go.linenoise",
@@ -28,24 +31,24 @@
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
-			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
+			"Rev": "764a32c188f6ce0bc2565349f0125b3ad4021ea9"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
-			"Rev": "535138d7bcd717d6531c701ef5933d98b1866257"
+			"Rev": "764a32c188f6ce0bc2565349f0125b3ad4021ea9"
 		},
 		{
 			"ImportPath": "github.com/gin-gonic/gin",
-			"Comment": "v0.6",
-			"Rev": "e2fa89777e344782ef5d31929f095f4589c35dcc"
+			"Comment": "v1.0rc1-148-g52fcc5d",
+			"Rev": "52fcc5dbf6e94df33ad313858fb94b713e9d1b4a"
 		},
 		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "d1c4472bf2efd3826f2b5bdcc02d8416798d678c"
 		},
 		{
-			"ImportPath": "github.com/julienschmidt/httprouter",
-			"Rev": "b428fda53bb0a764fea9c76c9413512eda291dec"
+			"ImportPath": "github.com/manucorporat/sse",
+			"Rev": "fe6ea2c8e398672518ef204bf0fbd9af858d0e15"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-colorable",
@@ -53,15 +56,24 @@
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "d0e0d8e11f318e000a8cc434616d69e329edc374"
+			"Rev": "1d7be4effb13d2d908342d349d71a284a7542693"
 		},
 		{
 			"ImportPath": "github.com/shiena/ansicolor",
 			"Rev": "8368d3b31cf6f2c2464c7a91675342c9a0ac6658"
 		},
 		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "19b594f1abaff92ed8ffffb98ca9831a643401d5"
+		},
+		{
 			"ImportPath": "golang.org/x/net/websocket",
 			"Rev": "6c248060f952e492a9f0f25d49a727fab9251693"
+		},
+		{
+			"ImportPath": "gopkg.in/bluesuncorp/validator.v5",
+			"Comment": "v5.12",
+			"Rev": "d5acf1dac43705f8bfbb71d878e290e2bed3950b"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v1",
