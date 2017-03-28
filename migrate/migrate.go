@@ -181,7 +181,7 @@ func (t *MigrateTask) migrateSlot(slot int, keysPer int) (int, error, string) {
 		}
 
 		if suportmultikeys {
-			temp_keys := keys[0:] 
+			temp_keys := keys[0:]
 			for len(temp_keys) != 0 {
 				step := migratekeystep
 				if len(temp_keys) < migratekeystep {
@@ -288,13 +288,13 @@ func (t *MigrateTask) Run() {
 	if t.CurrentState() == StateNew {
 		t.SetState(StateRunning)
 	}
-	if t.CurrentState() == StateCancelling {
-		t.SetState(StateCancelled)
-		return
-	}
 	prev_key := ""
 	timeout_cnt := 0
 	for i, r := range t.ranges {
+		if t.CurrentState() == StateCancelling {
+			t.SetState(StateCancelled)
+			return
+		}
 		if r.Left < 0 {
 			r.Left = 0
 		}
