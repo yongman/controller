@@ -6,7 +6,7 @@
 export hostip=10.99.201.8
 ```
 
-##zk搭建
+## zk搭建
 
 ```
 //拉取镜像
@@ -15,7 +15,7 @@ docker pull hub.c.163.com/zhongjianfeng/zookeeper
 docker run -d --name zk --net host hub.c.163.com/zhongjianfeng/zookeeper
 ```
 
-##创建redis镜像并启动
+## 创建redis镜像并启动
 
 cd到redis的[repo](https://github.com/ksarch-saas/redis)目录
 
@@ -33,7 +33,7 @@ do
 done
 ```
 
-##初始化redis集群命令
+## 初始化redis集群命令
 
 ```
 注：需要自己编译一个redis-cli客户端放到PATH下
@@ -66,7 +66,7 @@ redis-cli -h $hostip -p 2020 cluster addslots `seq 5462 10921`
 redis-cli -h $hostip -p 2040 cluster addslots `seq 10922 16383`
 ```
 
-##Proxy镜像并启动
+## Proxy镜像并启动
 
 //cd到proxy的[repo](https://github.com/ksarch-saas/r3proxy)根目录，生成镜像
 
@@ -79,7 +79,7 @@ docker run -d --name proxy --net host local/proxy:v1 proxyIP 宿主机IP redis�
 docker run -d --name proxy --net host local/proxy:v1 4000 10.99.201.8 2000
 ```
 
-##创建zkcli镜像，初始化zk数据
+## 创建zkcli镜像，初始化zk数据
 
 cd到项目[repo](https://github.com/ksarch-saas/zookeepercli)，创建镜像
 
@@ -91,14 +91,14 @@ docker build -t local/zkcli:v1 .
 docker run --rm local/zkcli:v1 init -server $hostip 2181
 ```
 
-##生成controller镜像
+## 生成controller镜像
 
 ```
 cd <controller_repo>
 docker build -t local/controller:v1 .
 ```
 
-##创建controller客户端cli，初始化集群数据
+## 创建controller客户端cli，初始化集群数据
 
 [controller_repo](https://github.com/ksarch-saas/cc)
 
@@ -111,7 +111,7 @@ docker build -t local/controllercli:v1 .
 docker run -it --rm local/controllercli:v1 $hostip:2181 appadd -n redis-demo -r=nj -u=1000000000
 ```
 
-##启动controller
+## 启动controller
 
 [controller_repo](https://github.com/ksarch-saas/cc)
 
@@ -119,19 +119,19 @@ docker run -it --rm local/controllercli:v1 $hostip:2181 appadd -n redis-demo -r=
 docker run -d --name controller --net host local/controller:v1 -appname=redis-demo -http-port=8000 -ws-port=8001 -local-region=nj -seeds=$10.99.201.8:2000 -zkhosts=$hostip:2181
 ```
 
-##搭建完成
+## 搭建完成
 
-###读写测试
+### 读写测试
 
 ```
 redis-cli -h $hostip -p 4000
 ```
 
-###集群状态查看与控制
+### 集群状态查看与控制
 
 ```
 docker run -it --rm local/controllercli:v1 $hostip:2181 redis-demo
 
-或者直接通过UI来进行查看和控制
+//或者直接通过UI来进行查看和控制
 http://$hostip:8000/ui/cluster.html
 ```
