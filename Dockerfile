@@ -6,4 +6,6 @@ COPY . /go/src/github.com/ksarch-saas/cc
 
 RUN cd /go/src/github.com/ksarch-saas/cc && ./godep go install
 
+WORKDIR /go/src/github.com/ksarch-saas/cc
+
 ENTRYPOINT ["cc"]
